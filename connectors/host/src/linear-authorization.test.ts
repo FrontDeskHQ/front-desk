@@ -44,6 +44,7 @@ const workspaceResponse = () =>
       organization: { id: "workspace-1", name: "Acme" },
       teams: {
         nodes: [{ id: "team-1", key: "ENG", name: "Engineering" }],
+        pageInfo: { endCursor: null, hasNextPage: false },
       },
       viewer: { id: "app-user-1" },
     },
@@ -53,6 +54,7 @@ describe(createLinearAuthorization, () => {
   it("builds the authorize URL with the round-tripped state", () => {
     const url = new URL(
       authorizationFor(vi.fn<typeof fetch>()).authorizeUrl({
+        config: null,
         integrationId: "integration-1",
         state: "integration-1.nonce",
       })
@@ -76,6 +78,7 @@ describe(createLinearAuthorization, () => {
   });
 
   it("exchanges the code into a credential and a config patch", async () => {
+    const startedAt = Date.now();
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -93,6 +96,7 @@ describe(createLinearAuthorization, () => {
             organization: { id: "workspace-1", name: "Acme" },
             teams: {
               nodes: [{ id: "team-1", key: "ENG", name: "Engineering" }],
+              pageInfo: { endCursor: null, hasNextPage: false },
             },
             viewer: { id: "app-user-1" },
           },
@@ -143,6 +147,52 @@ describe(createLinearAuthorization, () => {
         refreshToken: "refresh-token",
         viewerId: "app-user-1",
       },
+    });
+    const expiresAt = (result.credential as { expiresAt: string }).expiresAt;
+    expect(
+      Math.abs(new Date(expiresAt).getTime() - (startedAt + 86_399_000))
+    ).toBeLessThan(1000);
+  });
+
+  it("loads every team page", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            organization: { id: "workspace-1", name: "Acme" },
+            teams: {
+              nodes: [{ id: "team-1", key: "ENG", name: "Engineering" }],
+              pageInfo: { endCursor: "cursor-1", hasNextPage: true },
+            },
+            viewer: { id: "app-user-1" },
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            teams: {
+              nodes: [{ id: "team-2", key: "OPS", name: "Operations" }],
+              pageInfo: { endCursor: null, hasNextPage: false },
+            },
+          },
+        })
+      );
+
+    const result = await authorizationFor(fetcher).complete({
+      code: "oauth-code",
+      config: null,
+      integrationId: "integration-1",
+    });
+
+    expect(result.configPatch.teams).toStrictEqual([
+      { id: "team-1", key: "ENG", name: "Engineering" },
+      { id: "team-2", key: "OPS", name: "Operations" },
+    ]);
+    expect(JSON.parse(String(fetcher.mock.calls[2]?.[1]?.body))).toMatchObject({
+      variables: { after: "cursor-1" },
     });
   });
 
@@ -199,13 +249,45 @@ describe(createLinearAuthorization, () => {
 
     expect({
       body: String(fetcher.mock.calls[0]?.[1]?.body),
+      redirect: fetcher.mock.calls[0]?.[1]?.redirect,
       result,
+      signal: fetcher.mock.calls[0]?.[1]?.signal,
       url: fetcher.mock.calls[0]?.[0],
     }).toStrictEqual({
       body: "token=stored-access&token_type_hint=access_token",
+      redirect: "error",
       result: {},
+      signal: expect.any(AbortSignal),
       url: "https://api.linear.app/oauth/revoke",
     });
+    expect(fake.store.read.mock.calls[0]?.[1]?.signal).not.toBe(
+      fetcher.mock.calls[0]?.[1]?.signal
+    );
+  });
+
+  it("rejects an upstream revoke failure", async () => {
+    const fake = createFakeCredentialStore({
+      "integration-1": {
+        credential: {
+          accessToken: "stored-access",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          refreshToken: "stored-refresh",
+          scope: "read issues:create",
+          tokenType: "Bearer",
+          viewerId: "viewer",
+        },
+        organizationId: "organization-1",
+      },
+    });
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 503 }));
+
+    await expect(
+      authorizationFor(fetcher, fake).revoke({
+        integrationId: "integration-1",
+      })
+    ).rejects.toThrow("LINEAR_REVOKE_FAILED");
   });
 
   it("treats a missing credential as already revoked", async () => {

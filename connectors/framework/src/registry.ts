@@ -25,7 +25,7 @@ export interface RegistryEntry {
    * Fully-resolved authorization endpoints. Only meaningful when
    * `manifest.supportsAuthorization` is true.
    */
-  authorizationUrlUrl: string;
+  authorizationUrl: string;
   authorizationRevokeUrl: string;
 }
 
@@ -70,7 +70,7 @@ export function buildRegistry(
       baseUrl,
       actionInvokeUrl: `${baseUrl}${ACTION_INVOKE_PATH}`,
       authorizationRevokeUrl: `${baseUrl}${AUTHORIZATION_REVOKE_PATH}`,
-      authorizationUrlUrl: `${baseUrl}${AUTHORIZATION_URL_PATH}`,
+      authorizationUrl: `${baseUrl}${AUTHORIZATION_URL_PATH}`,
       invokeUrl: `${baseUrl}${CAPABILITY_INVOKE_PATH}`,
       manifest,
       probeUrl: `${baseUrl}${CONNECTION_PROBE_PATH}`,

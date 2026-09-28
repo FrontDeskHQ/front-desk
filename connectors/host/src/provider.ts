@@ -30,7 +30,11 @@ export interface HostedConnector {
  */
 export interface HostedAuthorization {
   /** URL the owner's browser visits; `state` must round-trip untouched. */
-  authorizeUrl(input: { integrationId: string; state: string }): string;
+  authorizeUrl(input: {
+    config: string | null;
+    integrationId: string;
+    state: string;
+  }): string;
   /**
    * Exchange the callback code for a credential plus the config it implies.
    * `config` is the integration's current `configStr`.
@@ -51,6 +55,7 @@ export interface HostedAuthorization {
 /** Core-side operations the host needs to finish a handshake. */
 export interface AuthorizationCore {
   complete(input: {
+    connectorType: string;
     configPatch: Record<string, unknown>;
     credential: unknown;
     integrationId: string;

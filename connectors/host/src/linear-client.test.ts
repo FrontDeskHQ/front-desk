@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeCredentialStore } from "./credential-store.fake";
-import { getLinearCredential } from "./linear-client";
+import { getLinearCredential, readLinearCredential } from "./linear-client";
 
 const credential = (overrides: Record<string, string>) => ({
   accessToken: "old-access",
@@ -60,6 +60,8 @@ describe(getLinearCredential, () => {
       sameResult: first === second,
       thirdAccessToken: third.credential.accessToken,
       thirdVersion: third.version,
+      readSignal: fake.store.read.mock.calls[0]?.[1]?.signal,
+      writeSignal: fake.store.write.mock.calls[0]?.[3]?.signal,
     }).toStrictEqual({
       firstRefreshToken: "new-refresh",
       reads: 2,
@@ -67,6 +69,8 @@ describe(getLinearCredential, () => {
       sameResult: true,
       thirdAccessToken: "new-access",
       thirdVersion: 2,
+      readSignal: expect.any(AbortSignal),
+      writeSignal: expect.any(AbortSignal),
     });
   });
 
@@ -174,6 +178,44 @@ describe(getLinearCredential, () => {
       secondAccessToken: "oauth-access",
       writes: 3,
     });
+  });
+
+  it("reads core before using a pending credential as a fallback", async () => {
+    const fake = createFakeCredentialStore({
+      "integration-5": {
+        credential: credential({}),
+        organizationId: "organization-5",
+      },
+    });
+    fake.store.write.mockRejectedValue(new Error("down"));
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        tokenResponse("pending-access", "pending-refresh")
+      );
+    vi.spyOn(console, "error").mockReturnValue(undefined);
+    const environment = {
+      clientId: "client",
+      clientSecret: "secret",
+      credentials: fake.store,
+    };
+    await getLinearCredential("integration-5", environment, fetcher);
+    fake.store.read.mockRejectedValueOnce(new Error("core unavailable"));
+    const fallback = await readLinearCredential("integration-5", environment);
+    fake.replace(
+      "integration-5",
+      credential({
+        accessToken: "oauth-access",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+      })
+    );
+    const authoritative = await readLinearCredential(
+      "integration-5",
+      environment
+    );
+
+    expect(fallback?.credential.accessToken).toBe("pending-access");
+    expect(authoritative?.credential.accessToken).toBe("oauth-access");
   });
 
   it("adopts another writer's rotation instead of overwriting it", async () => {

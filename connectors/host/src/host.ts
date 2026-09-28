@@ -113,10 +113,13 @@ const registerConnectorRoutes = (
   );
 };
 
-const callbackQuerySchema = z.object({
-  code: z.string().min(1),
-  state: z.string().min(1),
-});
+const callbackQuerySchema = z
+  .object({
+    code: z.string().min(1).optional(),
+    error: z.string().min(1).optional(),
+    state: z.string().min(1),
+  })
+  .refine(({ code, error }) => Boolean(code) !== Boolean(error));
 
 const registerAuthorizationRoutes = (
   app: AnyElysia,
@@ -139,6 +142,7 @@ const registerAuthorizationRoutes = (
     try {
       return {
         url: authorization.authorizeUrl({
+          config: parsed.data.config,
           integrationId: parsed.data.integrationId,
           state: parsed.data.state,
         }),
@@ -185,8 +189,17 @@ const registerAuthorizationRoutes = (
       return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
     }
     const state = decodeAuthorizationState(parsed.data.state);
-    if (!state) {
+    if (!state || state.connectorType !== type) {
       return Response.redirect(`${settingsUrl}?error=invalid_state`, 302);
+    }
+    if (parsed.data.error) {
+      const providerErrorQuery = new URLSearchParams({
+        error: parsed.data.error,
+      });
+      return Response.redirect(`${settingsUrl}?${providerErrorQuery}`, 302);
+    }
+    if (!parsed.data.code) {
+      return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
     }
 
     try {
@@ -197,17 +210,25 @@ const registerAuthorizationRoutes = (
         integrationId: state.integrationId,
       });
       await core.complete({
+        connectorType: type,
         configPatch,
         credential,
         integrationId: state.integrationId,
         state: state.nonce,
       });
-      authorization.onCompleted?.(state.integrationId);
-      return Response.redirect(settingsUrl, 302);
     } catch (error) {
       console.error(`[connector-host] ${type} authorization failed`, error);
       return Response.redirect(`${settingsUrl}?error=callback_error`, 302);
     }
+    try {
+      authorization.onCompleted?.(state.integrationId);
+    } catch (error) {
+      console.error(
+        `[connector-host] ${type} post-authorization hook failed`,
+        error
+      );
+    }
+    return Response.redirect(settingsUrl, 302);
   });
 };
 

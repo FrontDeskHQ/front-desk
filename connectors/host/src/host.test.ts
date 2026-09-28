@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 
+import { encodeAuthorizationState } from "@connectors/framework";
 import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { describe, expect, it, vi } from "vitest";
 
@@ -499,10 +500,11 @@ describe(createConnectorHost, () => {
 
     it("hands the exchanged credential to core with the decoded nonce", async () => {
       const { hostApp, authorization, core } = authorizationHost();
+      const state = encodeAuthorizationState("acme", "integration-1", "nonce");
 
       const response = await hostApp.handle(
         new Request(
-          "http://localhost/acme/authorization/callback?code=code&state=integration-1.nonce"
+          `http://localhost/acme/authorization/callback?code=code&state=${state}`
         )
       );
 
@@ -513,6 +515,7 @@ describe(createConnectorHost, () => {
         onCompleted: authorization.onCompleted.mock.calls[0]?.[0],
       }).toStrictEqual({
         completed: {
+          connectorType: "acme",
           configPatch: { workspaceId: "workspace-1" },
           credential: { token: "secret" },
           integrationId: "integration-1",
@@ -529,8 +532,21 @@ describe(createConnectorHost, () => {
       });
     });
 
+    it("routes integration IDs containing delimiters without truncation", async () => {
+      const { core, hostApp } = authorizationHost();
+      const state = encodeAuthorizationState("acme", "acme.prod", "nonce");
+
+      await hostApp.handle(
+        new Request(
+          `http://localhost/acme/authorization/callback?code=code&state=${state}`
+        )
+      );
+
+      expect(core.complete.mock.calls[0]?.[0].integrationId).toBe("acme.prod");
+    });
+
     it("serves authorize URLs and revocations only to core", async () => {
-      const { hostApp } = authorizationHost();
+      const { authorization, hostApp } = authorizationHost();
 
       const unauthorized = await hostApp.handle(
         new Request("http://localhost/acme/api/authorization/url", {
@@ -556,17 +572,152 @@ describe(createConnectorHost, () => {
           integrationId: "integration-1",
         })
       );
+      const unauthorizedRevoke = await hostApp.handle(
+        request(
+          "/acme/api/authorization/revoke",
+          { config: null, integrationId: "integration-1" },
+          null
+        )
+      );
 
       expect({
         revoke: await revoke.json(),
         unauthorized: unauthorized.status,
+        unauthorizedRevoke: unauthorizedRevoke.status,
         url: await url.json(),
       }).toStrictEqual({
         revoke: { alreadyRevoked: true },
         unauthorized: 401,
+        unauthorizedRevoke: 401,
         url: {
           url: "https://provider.test/authorize?state=integration-1.nonce",
         },
+      });
+      expect(authorization.authorizeUrl).toHaveBeenCalledWith({
+        config: null,
+        integrationId: "integration-1",
+        state: "integration-1.nonce",
+      });
+    });
+
+    it("rejects callback state issued for another connector type", async () => {
+      const { hostApp, authorization } = authorizationHost();
+      const state = encodeAuthorizationState("other", "integration-1", "nonce");
+
+      const response = await hostApp.handle(
+        new Request(
+          `http://localhost/acme/authorization/callback?code=code&state=${state}`
+        )
+      );
+
+      expect(response.headers.get("location")).toBe(
+        "https://frontdesk.test/app/settings/organization/integration/acme?error=invalid_state"
+      );
+      expect(authorization.complete).not.toHaveBeenCalled();
+    });
+
+    it("reports missing callback parameters", async () => {
+      const { hostApp } = authorizationHost();
+
+      const response = await hostApp.handle(
+        new Request("http://localhost/acme/authorization/callback?state=bad")
+      );
+
+      expect(response.headers.get("location")).toBe(
+        "https://frontdesk.test/app/settings/organization/integration/acme?error=missing_params"
+      );
+    });
+
+    it("preserves an authorization provider error", async () => {
+      const { hostApp, authorization } = authorizationHost();
+      const state = encodeAuthorizationState("acme", "integration-1", "nonce");
+
+      const response = await hostApp.handle(
+        new Request(
+          `http://localhost/acme/authorization/callback?error=access_denied&state=${state}`
+        )
+      );
+
+      expect(response.headers.get("location")).toBe(
+        "https://frontdesk.test/app/settings/organization/integration/acme?error=access_denied"
+      );
+      expect(authorization.complete).not.toHaveBeenCalled();
+    });
+
+    it.each(["connector", "core"] as const)(
+      "reports a %s callback completion failure",
+      async (failureAt) => {
+        const { authorization, core, hostApp } = authorizationHost();
+        const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+        if (failureAt === "connector") {
+          authorization.complete.mockRejectedValueOnce(new Error("failed"));
+        } else {
+          core.complete.mockRejectedValueOnce(new Error("failed"));
+        }
+        const state = encodeAuthorizationState(
+          "acme",
+          "integration-1",
+          "nonce"
+        );
+
+        const response = await hostApp.handle(
+          new Request(
+            `http://localhost/acme/authorization/callback?code=code&state=${state}`
+          )
+        );
+
+        expect(response.headers.get("location")).toBe(
+          "https://frontdesk.test/app/settings/organization/integration/acme?error=callback_error"
+        );
+        error.mockRestore();
+      }
+    );
+
+    it("keeps a completed authorization successful when its hook fails", async () => {
+      const { authorization, hostApp } = authorizationHost();
+      authorization.onCompleted.mockImplementationOnce(() => {
+        throw new Error("hook failed");
+      });
+      const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+      const state = encodeAuthorizationState("acme", "integration-1", "nonce");
+
+      const response = await hostApp.handle(
+        new Request(
+          `http://localhost/acme/authorization/callback?code=code&state=${state}`
+        )
+      );
+
+      expect(response.headers.get("location")).toBe(
+        "https://frontdesk.test/app/settings/organization/integration/acme"
+      );
+      expect(error).toHaveBeenCalledOnce();
+      error.mockRestore();
+    });
+
+    it("rejects callbacks when core is not mounted", async () => {
+      const { authorization } = authorizationHost();
+      const hostApp = createConnectorHost({
+        providers: [
+          {
+            connector: {
+              authorization,
+              invoke: vi.fn<HostedConnector["invoke"]>(),
+              probe: vi.fn<HostedConnector["probe"]>(),
+              type: "acme",
+            },
+            registerRoutes() {},
+          },
+        ],
+        secret: "connector-secret",
+      }).app;
+
+      const response = await hostApp.handle(
+        new Request("http://localhost/acme/authorization/callback")
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toStrictEqual({
+        error: "AUTHORIZATION_NOT_CONFIGURED",
       });
     });
   });

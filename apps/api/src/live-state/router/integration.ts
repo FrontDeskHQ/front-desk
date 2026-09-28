@@ -493,11 +493,15 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       });
 
       return requestAuthorizationUrl(
-        entry.authorizationUrlUrl,
+        entry.authorizationUrl,
         {
           config: integration.configStr,
           integrationId: integration.id,
-          state: encodeAuthorizationState(integration.id, nonce),
+          state: encodeAuthorizationState(
+            integration.type,
+            integration.id,
+            nonce
+          ),
         },
         { secret: getConnectorInvokeSecret() }
       );
@@ -511,6 +515,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
    */
   completeAuthorization: mutation(
     z.object({
+      connectorType: z.string().min(1),
       configPatch: z.record(z.string(), z.unknown()),
       credential: credentialValueSchema,
       integrationId: z.string().min(1),
@@ -528,6 +533,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       const integration = await trx.integration.one(initial.id).get();
       if (!integration) {
         throw errors.notFound("integration");
+      }
+      if (integration.type !== req.input.connectorType) {
+        throw new Error("AUTHORIZATION_CONNECTOR_TYPE_MISMATCH");
       }
 
       const pendingState = (

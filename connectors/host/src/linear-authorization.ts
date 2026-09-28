@@ -13,18 +13,33 @@ const tokenResponseSchema = z.object({
   token_type: z.string().min(1),
 });
 
+const teamSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  name: z.string(),
+});
+
+const teamsConnectionSchema = z.object({
+  nodes: z.array(teamSchema),
+  pageInfo: z.object({
+    endCursor: z.string().nullable(),
+    hasNextPage: z.boolean(),
+  }),
+});
+
 const workspaceDataSchema = z.object({
   organization: z.object({ id: z.string(), name: z.string() }),
-  teams: z.object({
-    nodes: z.array(
-      z.object({ id: z.string(), key: z.string(), name: z.string() })
-    ),
-  }),
+  teams: teamsConnectionSchema,
   viewer: z.object({ id: z.string() }),
 });
 
 const workspaceResponseSchema = z.object({
   data: workspaceDataSchema.nullable().optional(),
+  errors: z.array(z.object({ message: z.string() })).optional(),
+});
+
+const teamsPageResponseSchema = z.object({
+  data: z.object({ teams: teamsConnectionSchema }).nullable().optional(),
   errors: z.array(z.object({ message: z.string() })).optional(),
 });
 
@@ -142,7 +157,10 @@ const exchangeCode = async (
         query: `query FrontDeskWorkspaceSetup {
           viewer { id }
           organization { id name }
-          teams(first: 100) { nodes { id key name } }
+          teams(first: 100) {
+            nodes { id key name }
+            pageInfo { endCursor hasNextPage }
+          }
         }`,
       }),
       headers: {
@@ -163,19 +181,51 @@ const exchangeCode = async (
   ) {
     throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
   }
-  const { organization, teams, viewer } = workspace.data.data;
+  const { organization, teams: firstTeamsPage, viewer } = workspace.data.data;
+  const teams = [...firstTeamsPage.nodes];
+  let pageInfo = firstTeamsPage.pageInfo;
+  while (pageInfo.hasNextPage) {
+    if (!pageInfo.endCursor) {
+      throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
+    }
+    const pageResponse = await requireOk(
+      await fetchWithTimeout(fetcher, "https://api.linear.app/graphql", {
+        body: JSON.stringify({
+          query: `query FrontDeskWorkspaceTeams($after: String!) {
+            teams(first: 100, after: $after) {
+              nodes { id key name }
+              pageInfo { endCursor hasNextPage }
+            }
+          }`,
+          variables: { after: pageInfo.endCursor },
+        }),
+        headers: {
+          authorization: `Bearer ${token.access_token}`,
+          "content-type": "application/json",
+        },
+        method: "POST",
+      }),
+      "LINEAR_WORKSPACE_LOOKUP_FAILED"
+    );
+    const page = teamsPageResponseSchema.safeParse(await pageResponse.json());
+    if (!page.success || page.data.errors?.length || !page.data.data) {
+      throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
+    }
+    teams.push(...page.data.data.teams.nodes);
+    pageInfo = page.data.data.teams.pageInfo;
+  }
 
   // A reconnect to a different workspace can leave the saved default team
   // pointing at a team that no longer exists.
   const defaultTeamId = readDefaultTeamId(input.config);
   const staleDefaultTeam =
     defaultTeamId !== undefined &&
-    !teams.nodes.some((team) => team.id === defaultTeamId);
+    !teams.some((team) => team.id === defaultTeamId);
 
   return {
     configPatch: {
       ...(staleDefaultTeam ? { defaultTeamId: null } : {}),
-      teams: teams.nodes,
+      teams,
       workspaceId: organization.id,
       workspaceName: organization.name,
     },
@@ -195,9 +245,8 @@ const revokeLinearAuthorization = async (
   clientEnvironment: LinearClientEnvironment,
   fetcher: typeof fetch
 ): Promise<{ alreadyRevoked?: boolean }> => {
-  const signal = AbortSignal.timeout(LINEAR_REVOKE_TIMEOUT_MS);
   const context = await readLinearCredential(integrationId, clientEnvironment, {
-    signal,
+    signal: AbortSignal.timeout(LINEAR_REVOKE_TIMEOUT_MS),
   });
   if (!context) return { alreadyRevoked: true };
   const response = await fetcher("https://api.linear.app/oauth/revoke", {
@@ -207,7 +256,8 @@ const revokeLinearAuthorization = async (
     }),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     method: "POST",
-    signal,
+    redirect: "error",
+    signal: AbortSignal.timeout(LINEAR_REVOKE_TIMEOUT_MS),
   });
   // Linear returns 400 for an already-revoked token and 401 when the token can
   // no longer authenticate. Both satisfy disconnect intent.

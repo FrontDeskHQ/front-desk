@@ -153,7 +153,7 @@ An [organization](#organization)-scoped secret that authorizes one [integration]
 
 ### Authorization
 
-The handshake by which an organization grants one [integration](#integration) access to its external system, producing an [integration credential](#integration-credential). A [connector](#connector) opts into authorization; FrontDesk core owns the handshake's bookkeeping and custody of the resulting credential, while the connector alone understands what the credential contains, how to refresh it, and how to revoke it. Revoking the authorization is what **disconnect** means, and is a property of the install — not of any [capability](#capability). _Avoid_: "OAuth" as the name for the flow (OAuth is one mechanism); "connect" (reserved for installation-style setup).
+The handshake by which an organization grants one [integration](#integration) access to its external system, producing an [integration credential](#integration-credential). A [connector](#connector) opts into authorization; FrontDesk core owns the handshake's bookkeeping and custody of the resulting credential, while the connector alone understands what the credential contains, how to refresh it, and how to revoke it. Revoking the authorization is what **disconnect** means, and is a property of the [integration](#integration) — not of any [capability](#capability). _Avoid_: "OAuth" as the name for the flow (OAuth is one mechanism); "connect" (reserved for installation-style setup).
 
 ### External install
 

@@ -28,11 +28,12 @@ export interface IntegrationCredentialStore {
 }
 
 const withSignal = async <T>(
-  promise: Promise<T>,
+  operation: () => Promise<T>,
   signal?: AbortSignal
 ): Promise<T> => {
-  if (!signal) return promise;
+  if (!signal) return operation();
   signal.throwIfAborted();
+  const promise = operation();
   let onAbort: (() => void) | undefined;
   try {
     return await Promise.race([
@@ -52,16 +53,17 @@ export const createCredentialStore = (
 ): IntegrationCredentialStore => ({
   read: (integrationId, options) =>
     withSignal(
-      fetchClient.mutate.integration.readCredential({ integrationId }),
+      () => fetchClient.mutate.integration.readCredential({ integrationId }),
       options?.signal
     ),
   write: (integrationId, credential, expectedVersion, options) =>
     withSignal(
-      fetchClient.mutate.integration.writeCredential({
-        credential,
-        expectedVersion,
-        integrationId,
-      }),
+      () =>
+        fetchClient.mutate.integration.writeCredential({
+          credential,
+          expectedVersion,
+          integrationId,
+        }),
       options?.signal
     ),
 });

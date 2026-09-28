@@ -45,20 +45,30 @@ export const authorizationRevokeResultSchema = z.object({
  * the completion without a lookup.
  */
 export const encodeAuthorizationState = (
+  connectorType: string,
   integrationId: string,
   nonce: string
-): string => `${integrationId}.${nonce}`;
+): string =>
+  Buffer.from(
+    JSON.stringify({ connectorType, integrationId, nonce }),
+    "utf-8"
+  ).toString("base64url");
 
 export const decodeAuthorizationState = (
   state: string
-): { integrationId: string; nonce: string } | null => {
-  const separator = state.indexOf(".");
-  const integrationId = state.slice(0, separator);
-  const nonce = state.slice(separator + 1);
-  if (separator < 1 || !nonce) {
+): { connectorType: string; integrationId: string; nonce: string } | null => {
+  try {
+    const decoded = z
+      .object({
+        connectorType: z.string().min(1),
+        integrationId: z.string().min(1),
+        nonce: z.string().min(1),
+      })
+      .safeParse(JSON.parse(Buffer.from(state, "base64url").toString("utf-8")));
+    return decoded.success ? decoded.data : null;
+  } catch {
     return null;
   }
-  return { integrationId, nonce };
 };
 
 const authorizationFailure =

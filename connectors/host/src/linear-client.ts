@@ -229,8 +229,17 @@ export const readLinearCredential = async (
   options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext | null> => {
   const pending = pendingCredentials.get(integrationId);
-  if (pending) return pending;
-  return readStored(integrationId, environment, options);
+  try {
+    const stored = await readStored(integrationId, environment, options);
+    if (!stored) pendingCredentials.delete(integrationId);
+    else if (pending && pending.version !== stored.version) {
+      pendingCredentials.delete(integrationId);
+    }
+    return stored;
+  } catch (error) {
+    if (pending) return pending;
+    throw error;
+  }
 };
 
 export const getLinearCredential = (
