@@ -1,19 +1,9 @@
 import type { AnyElysia } from "elysia";
 import { z } from "zod";
 
-import {
-  completeLinearOAuth,
-  readLinearOAuthEnvironment,
-} from "./linear-oauth";
-import type { LinearOAuthEnvironment } from "./linear-oauth";
 import { parseLinearWebhook, verifyLinearWebhook } from "./linear-webhook";
 import type { LinearWebhookDependencies } from "./linear-webhook";
 import type { HostedConnector, HostedConnectorProvider } from "./provider";
-
-const linearCallbackQuerySchema = z.object({
-  code: z.string().min(1),
-  state: z.string().min(1),
-});
 
 export interface LinearProviderSync extends LinearWebhookDependencies {
   close(): Promise<void>;
@@ -25,55 +15,13 @@ export interface LinearProviderSync extends LinearWebhookDependencies {
 
 export interface LinearProviderOptions {
   connector: HostedConnector;
-  environment?: LinearOAuthEnvironment;
-  fetcher?: typeof fetch;
   sync?: LinearProviderSync;
 }
 
 const registerLinearRoutes = (
   app: AnyElysia,
-  environment: LinearOAuthEnvironment | undefined,
-  fetcher: typeof fetch,
   sync: LinearProviderSync | undefined
 ) => {
-  app.get("/linear/api/oauth/callback", async ({ query, set }) => {
-    let oauthEnvironment: LinearOAuthEnvironment;
-    try {
-      oauthEnvironment = environment ?? readLinearOAuthEnvironment();
-    } catch (error) {
-      console.error("[Linear] OAuth is not configured:", error);
-      set.status = 503;
-      return { error: "LINEAR_OAUTH_NOT_CONFIGURED" };
-    }
-
-    const parsed = linearCallbackQuerySchema.safeParse(query);
-    const settingsUrl = `${oauthEnvironment.frontendBaseUrl}/app/settings/organization/integration/linear`;
-    if (!parsed.success) {
-      return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
-    }
-    const separator = parsed.data.state.indexOf(".");
-    const integrationId = parsed.data.state.slice(0, separator);
-    const state = parsed.data.state.slice(separator + 1);
-    if (separator < 1 || !state) {
-      return Response.redirect(`${settingsUrl}?error=invalid_state`, 302);
-    }
-
-    try {
-      await completeLinearOAuth(
-        { code: parsed.data.code, integrationId, state },
-        oauthEnvironment,
-        fetcher
-      );
-      sync?.syncIntegration(integrationId).catch((error) => {
-        console.error("[Linear] Initial reconciliation failed:", error);
-      });
-      return Response.redirect(settingsUrl, 302);
-    } catch (error) {
-      console.error("[Linear] OAuth callback failed:", error);
-      return Response.redirect(`${settingsUrl}?error=callback_error`, 302);
-    }
-  });
-
   app.post(
     "/linear/api/webhook",
     async ({ body, headers, set }) => {
@@ -107,8 +55,6 @@ const registerLinearRoutes = (
 
 export const createLinearProvider = ({
   connector,
-  environment,
-  fetcher = fetch,
   sync,
 }: LinearProviderOptions): HostedConnectorProvider => {
   let reconciliationTimer: ReturnType<typeof setInterval> | undefined;
@@ -153,8 +99,7 @@ export const createLinearProvider = ({
 
   return {
     connector,
-    registerRoutes: (app) =>
-      registerLinearRoutes(app, environment, fetcher, sync),
+    registerRoutes: (app) => registerLinearRoutes(app, sync),
     start: () => {
       if (!sync || stopped) return;
       runStartupReconciliation();

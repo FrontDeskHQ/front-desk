@@ -21,6 +21,12 @@ export interface ConnectorManifest {
    * needs silent reconnect. See ADR-0010.
    */
   supportsConnectionProbe?: boolean;
+  /**
+   * Whether this connector runs an authorization handshake (e.g. OAuth) whose
+   * credential core keeps in custody, and exposes the authorization URL and
+   * revoke endpoints. See ADR-0024.
+   */
+  supportsAuthorization?: boolean;
   /** Whether this connector implements the issue-tracker `create` method. */
   supportsIssueCreation?: boolean;
 }
@@ -72,6 +78,7 @@ export const linearManifest: ConnectorManifest = {
   baseUrlEnv: "BASE_LINEAR_CONNECTOR_URL",
   capabilities: ["issue-tracker"],
   defaultBaseUrl: "http://localhost:3336/linear",
+  supportsAuthorization: true,
   supportsConnectionProbe: true,
   supportsIssueCreation: true,
   type: "linear",

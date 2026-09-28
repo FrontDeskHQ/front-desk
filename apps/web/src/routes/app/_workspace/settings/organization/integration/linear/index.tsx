@@ -88,18 +88,9 @@ function RouteComponent() {
   })();
   const config = parsed?.success ? parsed.data : null;
 
-  const startOAuth = async () => {
-    const clientId = import.meta.env.VITE_LINEAR_CLIENT_ID;
-    const connectorBaseUrl =
-      import.meta.env.VITE_BASE_LINEAR_CONNECTOR_URL ??
-      (import.meta.env.DEV ? "http://localhost:3336/linear" : undefined);
-    if (!(clientId && connectorBaseUrl)) {
-      toast.error("Linear OAuth is not configured.");
-      return;
-    }
-
+  const startAuthorization = async () => {
     const integrationId = integration?.id ?? ulid().toLowerCase();
-    let csrfToken: string;
+    let url: string;
     try {
       if (!integration) {
         await fetchClient.mutate.integration.connectInstallation({
@@ -112,27 +103,17 @@ function RouteComponent() {
           updatedAt: new Date(),
         });
       }
-      const pending = await fetchClient.mutate.integration.beginLinearOAuth({
+      ({ url } = await fetchClient.mutate.integration.beginAuthorization({
         integrationId,
-      });
-      csrfToken = pending.state;
+      }));
     } catch {
       toast.error("Could not start the Linear connection. Try again.");
       return;
     }
 
-    const redirectUri = `${connectorBaseUrl}/api/oauth/callback`;
-    const params = new URLSearchParams({
-      actor: "app",
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "read,issues:create",
-      state: `${integrationId}.${csrfToken}`,
-    });
     posthog?.capture("integration_enable", { integration_type: "linear" });
     await new Promise((resolve) => setTimeout(resolve, 300));
-    window.location.href = `https://linear.app/oauth/authorize?${params.toString()}`;
+    window.location.href = url;
   };
 
   const enable = async () => {
@@ -157,7 +138,7 @@ function RouteComponent() {
       }
     }
     try {
-      await startOAuth();
+      await startAuthorization();
     } catch (error) {
       console.error("[Linear] OAuth setup failed:", error);
       toast.error("Couldn't start Linear connection. Try again in a moment.");
@@ -167,7 +148,7 @@ function RouteComponent() {
   const disconnect = async () => {
     if (!integration) return;
     try {
-      await fetchClient.mutate.integration.disconnectLinear({
+      await fetchClient.mutate.integration.disconnect({
         integrationId: integration.id,
       });
       posthog?.capture("integration_disconnect", {
@@ -264,7 +245,7 @@ function RouteComponent() {
               </div>
               <Separator />
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={startOAuth}>
+                <Button variant="outline" onClick={startAuthorization}>
                   Reconnect
                 </Button>
                 <Button

@@ -159,29 +159,39 @@ export const lockOwnedIntegration = async (
   });
 };
 
+export type IntegrationCredentialWriteResult =
+  | { ok: true; version: number }
+  | { ok: false; version: number };
+
+/**
+ * Replace an integration's credential. With `expectedVersion`, the write is a
+ * compare-and-swap: a rotating refresh token written by a stale reader would
+ * otherwise overwrite the only valid one. Version 0 means "no live credential".
+ */
 export const writeIntegrationCredential = async (
   db: IntegrationCredentialDB,
   input: {
+    expectedVersion?: number;
     integrationId: string;
     organizationId: string;
     value: unknown;
   },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
-): Promise<void> => {
-  await db.transaction(async ({ trx }) => {
-    await writeIntegrationCredentialInTransaction(trx, input, keyring);
-  });
-};
+): Promise<IntegrationCredentialWriteResult> =>
+  db.transaction(({ trx }) =>
+    writeIntegrationCredentialInTransaction(trx, input, keyring)
+  );
 
 export const writeIntegrationCredentialInTransaction = async (
   db: IntegrationCredentialTransactionDB,
   input: {
+    expectedVersion?: number;
     integrationId: string;
     organizationId: string;
     value: unknown;
   },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
-): Promise<void> => {
+): Promise<IntegrationCredentialWriteResult> => {
   const encrypted = encryptIntegrationCredential(input.value, input, keyring);
   await lockOwnedIntegration(db, input.organizationId, input.integrationId);
   const existing = (
@@ -189,16 +199,24 @@ export const writeIntegrationCredentialInTransaction = async (
       .where({ integrationId: input.integrationId })
       .get()
   )[0];
+  const currentVersion = liveVersion(existing);
+  if (
+    input.expectedVersion !== undefined &&
+    input.expectedVersion !== currentVersion
+  ) {
+    return { ok: false, version: currentVersion };
+  }
   const now = new Date();
 
   if (existing) {
+    const version = existing.version + 1;
     await db.integrationCredential.update(existing.id, {
       ...encrypted,
       revokedAt: null,
       updatedAt: now,
-      version: existing.version + 1,
+      version,
     });
-    return;
+    return { ok: true, version };
   }
 
   await db.integrationCredential.insert({
@@ -211,13 +229,24 @@ export const writeIntegrationCredentialInTransaction = async (
     updatedAt: now,
     version: 1,
   });
+  return { ok: true, version: 1 };
 };
+
+const liveVersion = (
+  row:
+    | {
+        encryptedPayload: string | null;
+        revokedAt: Date | null;
+        version: number;
+      }
+    | undefined
+): number => (row?.encryptedPayload && !row.revokedAt ? row.version : 0);
 
 export const readIntegrationCredential = async <T>(
   db: IntegrationCredentialDB,
   input: { integrationId: string; organizationId: string },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
-): Promise<T | null> => {
+): Promise<{ value: T; version: number } | null> => {
   await requireOwnedIntegration(db, input.organizationId, input.integrationId);
   const row = (
     await db.integrationCredential
@@ -230,12 +259,15 @@ export const readIntegrationCredential = async <T>(
   if (!row?.encryptedPayload || row.revokedAt) {
     return null;
   }
-  return decryptIntegrationCredential<T>(
-    row.encryptedPayload,
-    row.keyId,
-    input,
-    keyring
-  );
+  return {
+    value: decryptIntegrationCredential<T>(
+      row.encryptedPayload,
+      row.keyId,
+      input,
+      keyring
+    ),
+    version: row.version,
+  };
 };
 
 export const clearIntegrationCredential = async (

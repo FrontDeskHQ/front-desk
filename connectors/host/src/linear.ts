@@ -7,11 +7,7 @@ import {
 import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import { z } from "zod";
 
-import {
-  getLinearCredential,
-  linearGraphql,
-  readLinearCredential,
-} from "./linear-client";
+import { getLinearCredential, linearGraphql } from "./linear-client";
 import type { LinearClientEnvironment } from "./linear-client";
 import { linearExternalKey } from "./linear-sync";
 import type { HostedConnector } from "./provider";
@@ -144,49 +140,6 @@ export const createLinearConnector = (
     if (capability !== "issue-tracker") {
       return { body: { error: "METHOD_NOT_IMPLEMENTED" }, status: 501 };
     }
-    if (method === "disconnect") {
-      if (!(integrationId && dependencies.environment)) {
-        return { body: { error: "LINEAR_NOT_CONFIGURED" }, status: 503 };
-      }
-      try {
-        const timeoutSignal = AbortSignal.timeout(LINEAR_OPERATION_TIMEOUT_MS);
-        const context = await readLinearCredential(
-          integrationId,
-          dependencies.environment,
-          dependencies.fetcher,
-          { signal: timeoutSignal }
-        );
-        if (!context) {
-          return {
-            body: { alreadyRevoked: true, ok: true },
-            status: 200,
-          };
-        }
-        const { credential } = context;
-        const response = await (dependencies.fetcher ?? fetch)(
-          "https://api.linear.app/oauth/revoke",
-          {
-            body: new URLSearchParams({
-              token: credential.accessToken,
-              token_type_hint: "access_token",
-            }),
-            headers: { "content-type": "application/x-www-form-urlencoded" },
-            method: "POST",
-            signal: timeoutSignal,
-          }
-        );
-        // Linear returns 400 for an already-revoked token and 401 when the
-        // token can no longer authenticate. Both satisfy disconnect intent.
-        if (![200, 400, 401].includes(response.status)) {
-          return { body: { error: "LINEAR_REVOKE_FAILED" }, status: 503 };
-        }
-        return { body: { ok: true }, status: 200 };
-      } catch (error) {
-        console.error("[Linear] Disconnect failed:", error);
-        return { body: { error: "LINEAR_REVOKE_FAILED" }, status: 503 };
-      }
-    }
-
     if (!config) return { body: { error: "MISSING_CONFIG" }, status: 400 };
     let parsedJson: unknown;
     try {

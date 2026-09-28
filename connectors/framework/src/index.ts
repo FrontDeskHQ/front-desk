@@ -81,3 +81,18 @@ export {
   type ConnectorRegistry,
   type RegistryEntry,
 } from "./registry";
+export {
+  AUTHORIZATION_CALLBACK_PATH,
+  AUTHORIZATION_REVOKE_PATH,
+  AUTHORIZATION_URL_PATH,
+  type AuthorizationRevokeRequest,
+  type AuthorizationUrlRequest,
+  authorizationRevokeRequestSchema,
+  authorizationRevokeResultSchema,
+  authorizationUrlRequestSchema,
+  authorizationUrlResultSchema,
+  decodeAuthorizationState,
+  encodeAuthorizationState,
+  requestAuthorizationUrl,
+  revokeAuthorization,
+} from "./authorization";

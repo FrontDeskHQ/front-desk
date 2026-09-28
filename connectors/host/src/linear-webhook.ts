@@ -103,7 +103,7 @@ export const handleLinearWebhook = async (
             id: integration.id,
           });
           if (!latest || !matchesWorkspace(latest, false)) return;
-          await dependencies.fetchClient.mutate.integration.markLinearRevoked({
+          await dependencies.fetchClient.mutate.integration.markRevoked({
             integrationId: latest.id,
           });
         })

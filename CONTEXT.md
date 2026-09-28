@@ -151,6 +151,10 @@ One org's installed, configured instance of a [connector](#connector). A row in 
 
 An [organization](#organization)-scoped secret that authorizes one [integration](#integration) to act in its external system, such as a rotating OAuth access/refresh-token pair. It is private authorization material, not organization-visible integration configuration. Distinct from an [internal API key](#internal-api-key), which authenticates FrontDesk-owned services rather than an organization's external install. _Avoid_: "integration config" when the secret specifically is meant.
 
+### Authorization
+
+The handshake by which an organization grants one [integration](#integration) access to its external system, producing an [integration credential](#integration-credential). A [connector](#connector) opts into authorization; FrontDesk core owns the handshake's bookkeeping and custody of the resulting credential, while the connector alone understands what the credential contains, how to refresh it, and how to revoke it. Revoking the authorization is what **disconnect** means, and is a property of the install — not of any [capability](#capability). _Avoid_: "OAuth" as the name for the flow (OAuth is one mechanism); "connect" (reserved for installation-style setup).
+
 ### External install
 
 The counterpart of an [integration](#integration) on the external system — the GitHub App installation, Slack workspace install, Discord bot membership, etc. FrontDesk does not own it; the external system does. An integration may be `enabled: false` while its external install still exists, or `enabled: true` after the external install has been removed (stale). _Avoid_: calling this "the integration" or saying "integration enabled" when the external side is meant.

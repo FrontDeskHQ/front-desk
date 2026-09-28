@@ -1,9 +1,11 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import {
-  invokeCapability,
+  encodeAuthorizationState,
   probeConnection,
   RemoteInvokeTimeoutError,
+  requestAuthorizationUrl,
+  revokeAuthorization,
 } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
@@ -20,6 +22,9 @@ import { errors } from "../../lib/errors";
 import {
   clearIntegrationCredential,
   lockOwnedIntegration,
+  readIntegrationCredential,
+  writeIntegrationCredential,
+  writeIntegrationCredentialInTransaction,
 } from "../../lib/integration-credential";
 import { enqueueGithubBackfill, enqueueIssueIndex } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -55,14 +60,42 @@ const reenableInputSchema = z.object({
   integrationId: z.string(),
 });
 
-const LINEAR_OAUTH_STATE_TTL_MS = 10 * 60_000;
+const integrationIdInputSchema = z.object({
+  integrationId: z.string().min(1),
+});
 
-const hashOAuthState = (state: string): string =>
+/** Opaque to core: only the connector interprets its credential. */
+const credentialValueSchema = z
+  .unknown()
+  .refine((value) => value !== undefined && value !== null, {
+    message: "CREDENTIAL_REQUIRED",
+  });
+
+const AUTHORIZATION_STATE_TTL_MS = 10 * 60_000;
+
+const hashAuthorizationState = (state: string): string =>
   createHash("sha256").update(state).digest("hex");
+
+const secretsMatch = (provided: string, expected: string): boolean => {
+  const providedDigest = createHash("sha256").update(provided).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(providedDigest, expectedDigest);
+};
+
+const requireAuthorizationConnector = (type: string) => {
+  const entry = connectorRegistry.getByType(type);
+  if (!entry?.manifest.supportsAuthorization) {
+    throw errors.badRequest(
+      "AUTHORIZATION_NOT_SUPPORTED",
+      "This integration doesn't support authorization."
+    );
+  }
+  return entry;
+};
 
 type IntegrationRow = InferLiveObject<typeof schema.integration>;
 
-const finalizeLinearDisconnect = async (
+const finalizeDisconnect = async (
   db: ServerDB<typeof schema>,
   integration: IntegrationRow
 ): Promise<void> => {
@@ -316,51 +349,6 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     }
   ),
 
-  beginLinearOAuth: mutation(
-    z.object({ integrationId: z.string().min(1) })
-  ).handler(async ({ req, db }) => {
-    const integration = await db.integration.one(req.input.integrationId).get();
-    if (!integration || integration.type !== "linear") {
-      throw errors.notFound("linear integration");
-    }
-    authorize(req, {
-      organizationId: integration.organizationId,
-      role: "owner",
-    });
-
-    const state = randomBytes(32).toString("hex");
-    const now = new Date();
-    await db.transaction(async ({ trx }) => {
-      await lockOwnedIntegration(
-        trx,
-        integration.organizationId,
-        integration.id
-      );
-      const existing = (
-        await trx.integrationOAuthState
-          .where({ integrationId: integration.id })
-          .get()
-      )[0];
-      const fields = {
-        consumedAt: null,
-        createdAt: now,
-        expiresAt: new Date(now.getTime() + LINEAR_OAUTH_STATE_TTL_MS),
-        organizationId: integration.organizationId,
-        stateHash: hashOAuthState(state),
-      };
-      if (existing) {
-        await trx.integrationOAuthState.update(existing.id, fields);
-        return;
-      }
-      await trx.integrationOAuthState.insert({
-        ...fields,
-        id: ulid().toLowerCase(),
-        integrationId: integration.id,
-      });
-    });
-    return { state };
-  }),
-
   /**
    * Re-enable a disabled integration after checking external install liveness
    * (ADR-0010). Opt-in per connector manifest (`supportsConnectionProbe`):
@@ -454,38 +442,211 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     return { outcome: "needs_connect" as const };
   }),
 
-  disconnectLinear: mutation(reenableInputSchema).handler(
+  // --- Authorization (ADR-0024) -------------------------------------------
+  // Core keeps the handshake state and custody of the credential; the
+  // connector alone knows what the credential contains.
+
+  /** Start an owner's authorization handshake; returns the URL to visit. */
+  beginAuthorization: mutation(integrationIdInputSchema).handler(
     async ({ req, db }) => {
       const integration = await db.integration
         .one(req.input.integrationId)
         .get();
-      if (!integration || integration.type !== "linear") {
-        throw new Error("LINEAR_INTEGRATION_NOT_FOUND");
+      if (!integration) {
+        throw errors.notFound("integration");
       }
       authorize(req, {
         organizationId: integration.organizationId,
         role: "owner",
       });
+      const entry = requireAuthorizationConnector(integration.type);
 
-      const entry = connectorRegistry.getByType("linear");
-      if (!entry) throw new Error("LINEAR_CONNECTOR_NOT_REGISTERED");
-      const revokeResult = await invokeCapability<{
-        alreadyRevoked?: boolean;
-        ok: boolean;
-      }>(
-        entry.invokeUrl,
+      const nonce = randomBytes(32).toString("hex");
+      const now = new Date();
+      await db.transaction(async ({ trx }) => {
+        await lockOwnedIntegration(
+          trx,
+          integration.organizationId,
+          integration.id
+        );
+        const existing = (
+          await trx.integrationOAuthState
+            .where({ integrationId: integration.id })
+            .get()
+        )[0];
+        const fields = {
+          consumedAt: null,
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + AUTHORIZATION_STATE_TTL_MS),
+          organizationId: integration.organizationId,
+          stateHash: hashAuthorizationState(nonce),
+        };
+        if (existing) {
+          await trx.integrationOAuthState.update(existing.id, fields);
+          return;
+        }
+        await trx.integrationOAuthState.insert({
+          ...fields,
+          id: ulid().toLowerCase(),
+          integrationId: integration.id,
+        });
+      });
+
+      return requestAuthorizationUrl(
+        entry.authorizationUrlUrl,
         {
-          capability: "issue-tracker",
           config: integration.configStr,
           integrationId: integration.id,
-          method: "disconnect",
-          payload: {},
+          state: encodeAuthorizationState(integration.id, nonce),
         },
         { secret: getConnectorInvokeSecret() }
       );
-      if (!revokeResult.ok) {
-        throw new Error("LINEAR_REVOKE_FAILED");
+    }
+  ),
+
+  /**
+   * Finish a handshake on behalf of the connector host: verify and consume the
+   * state, store the opaque credential, merge the connector's config patch
+   * (`null` deletes a key) and enable the integration.
+   */
+  completeAuthorization: mutation(
+    z.object({
+      configPatch: z.record(z.string(), z.unknown()),
+      credential: credentialValueSchema,
+      integrationId: z.string().min(1),
+      state: z.string().min(1),
+    })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+    await db.transaction(async ({ trx }) => {
+      const initial = await trx.integration.one(req.input.integrationId).get();
+      if (!initial) {
+        throw errors.notFound("integration");
       }
+      requireAuthorizationConnector(initial.type);
+      await lockOwnedIntegration(trx, initial.organizationId, initial.id);
+      const integration = await trx.integration.one(initial.id).get();
+      if (!integration) {
+        throw errors.notFound("integration");
+      }
+
+      const pendingState = (
+        await trx.integrationOAuthState
+          .where({ integrationId: integration.id })
+          .get()
+      )[0];
+      if (
+        !pendingState ||
+        pendingState.consumedAt ||
+        pendingState.expiresAt.getTime() <= Date.now() ||
+        !secretsMatch(
+          hashAuthorizationState(req.input.state),
+          pendingState.stateHash
+        )
+      ) {
+        throw new Error("AUTHORIZATION_STATE_MISMATCH");
+      }
+
+      let currentConfig: Record<string, unknown>;
+      try {
+        currentConfig = z
+          .record(z.string(), z.unknown())
+          .parse(JSON.parse(integration.configStr ?? "{}"));
+      } catch {
+        throw new Error("INVALID_INTEGRATION_CONFIG");
+      }
+      const config = Object.fromEntries(
+        Object.entries({ ...currentConfig, ...req.input.configPatch }).filter(
+          ([, value]) => value !== null
+        )
+      );
+
+      await writeIntegrationCredentialInTransaction(trx, {
+        integrationId: integration.id,
+        organizationId: integration.organizationId,
+        value: req.input.credential,
+      });
+      const now = new Date();
+      await trx.integration.update(integration.id, {
+        configStr: JSON.stringify(config),
+        enabled: true,
+        updatedAt: now,
+      });
+      await trx.integrationOAuthState.update(pendingState.id, {
+        consumedAt: now,
+      });
+    });
+    return { ok: true };
+  }),
+
+  /** Connector-host read of the stored credential; `null` when none is live. */
+  readCredential: mutation(integrationIdInputSchema).handler(
+    async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+      const integration = await db.integration
+        .one(req.input.integrationId)
+        .get();
+      if (!integration) {
+        throw errors.notFound("integration");
+      }
+      const stored = await readIntegrationCredential(db, {
+        integrationId: integration.id,
+        organizationId: integration.organizationId,
+      });
+      return stored
+        ? {
+            credential: stored.value,
+            organizationId: integration.organizationId,
+            version: stored.version,
+          }
+        : null;
+    }
+  ),
+
+  /**
+   * Connector-host rotation of the stored credential. Compare-and-swap on
+   * `expectedVersion`; a conflict returns `ok: false` so the caller re-reads.
+   */
+  writeCredential: mutation(
+    z.object({
+      credential: credentialValueSchema,
+      expectedVersion: z.number().int().nonnegative(),
+      integrationId: z.string().min(1),
+    })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+    const integration = await db.integration.one(req.input.integrationId).get();
+    if (!integration) {
+      throw errors.notFound("integration");
+    }
+    return writeIntegrationCredential(db, {
+      expectedVersion: req.input.expectedVersion,
+      integrationId: integration.id,
+      organizationId: integration.organizationId,
+      value: req.input.credential,
+    });
+  }),
+
+  /** Revoke the authorization upstream, then tear the integration down. */
+  disconnect: mutation(integrationIdInputSchema).handler(
+    async ({ req, db }) => {
+      const integration = await db.integration
+        .one(req.input.integrationId)
+        .get();
+      if (!integration) {
+        throw errors.notFound("integration");
+      }
+      authorize(req, {
+        organizationId: integration.organizationId,
+        role: "owner",
+      });
+      const entry = requireAuthorizationConnector(integration.type);
+
+      await revokeAuthorization(
+        entry.authorizationRevokeUrl,
+        { config: integration.configStr, integrationId: integration.id },
+        { secret: getConnectorInvokeSecret() }
+      );
 
       // Revocation is a network round-trip. A reconnect can replace the
       // credential and config while it is in flight; never finalize cleanup
@@ -500,21 +661,23 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       ) {
         return { ok: true };
       }
-      await finalizeLinearDisconnect(db, current);
+      await finalizeDisconnect(db, current);
       return { ok: true };
     }
   ),
 
-  markLinearRevoked: mutation(reenableInputSchema).handler(
+  /** Connector-host report that the external system revoked access. */
+  markRevoked: mutation(integrationIdInputSchema).handler(
     async ({ req, db }) => {
       requireInternalApiKey(req.context);
       const integration = await db.integration
         .one(req.input.integrationId)
         .get();
-      if (!integration || integration.type !== "linear") {
-        throw new Error("LINEAR_INTEGRATION_NOT_FOUND");
+      if (!integration) {
+        throw errors.notFound("integration");
       }
-      await finalizeLinearDisconnect(db, integration);
+      requireAuthorizationConnector(integration.type);
+      await finalizeDisconnect(db, integration);
       return { ok: true };
     }
   ),
