@@ -1,0 +1,26 @@
+connectors/host/src/host.ts
+  s_996d130643c8e8::t_d3f9c05119cb87 216
+connectors/host/src/host.test.ts
+  s_996d130643c8e8::t_d3f9c05119cb87 540
+connectors/host/src/provider.ts
+  s_996d130643c8e8::t_cc89379e583826 61
+  s_996d130643c8e8::t_d3f9c05119cb87 62
+apps/api/src/live-state/router/integration.ts
+  s_996d130643c8e8::t_d3f9c05119cb87 521,541-542
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "defe9c1eb50868ed244f305103d1330c0050b703",
+  "prompts": {},
+  "sessions": {
+    "s_996d130643c8e8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e594-82a4-71c1-b5af-df55121b0345",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
