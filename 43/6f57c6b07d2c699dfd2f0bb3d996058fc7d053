@@ -1,0 +1,25 @@
+connectors/host/src/host.test.ts
+  s_996d130643c8e8::t_043b63c6bf1386 501-518
+connectors/host/src/linear-authorization.ts
+  s_996d130643c8e8::t_043b63c6bf1386 188-189,201,215-218,220
+connectors/host/src/host.ts
+  s_996d130643c8e8::t_043b63c6bf1386 120
+connectors/host/src/linear-authorization.test.ts
+  s_996d130643c8e8::t_043b63c6bf1386 199-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "436f57c6b07d2c699dfd2f0bb3d996058fc7d053",
+  "prompts": {},
+  "sessions": {
+    "s_996d130643c8e8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e594-82a4-71c1-b5af-df55121b0345",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
