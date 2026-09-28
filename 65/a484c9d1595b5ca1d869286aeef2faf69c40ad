@@ -1,0 +1,31 @@
+apps/web/src/components/threads/issues.tsx
+  s_f0f16d1ec5dbea::t_6aff67b7bf9aca 561-564
+  s_f0f16d1ec5dbea::t_16160f8043f5a5 201-203
+  s_f0f16d1ec5dbea::t_07159674083fd6 96-101
+  s_f0f16d1ec5dbea::t_3d03a08c9b5e29 262
+  s_f0f16d1ec5dbea::t_0422f123e822f3 265-279
+  s_f0f16d1ec5dbea::t_6897e36a898c1b 476-480
+  s_f0f16d1ec5dbea::t_1c87bb315f8087 453
+  s_f0f16d1ec5dbea::t_03b8571d05c03c 501
+  s_f0f16d1ec5dbea::t_45ce0d97841c84 567
+  s_f0f16d1ec5dbea::t_435590f840b20d 131-166,189,192-193
+  s_f0f16d1ec5dbea::t_9a720ba236c91c 540
+  s_f0f16d1ec5dbea::t_08c1db630fddb9 47-54
+  s_f0f16d1ec5dbea::t_5243c7f778c9f2 604
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "65a484c9d1595b5ca1d869286aeef2faf69c40ad",
+  "prompts": {},
+  "sessions": {
+    "s_f0f16d1ec5dbea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "30bdfae0-3c63-42fa-b926-ab8ff32c0910",
+        "model": "grok-4.7"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
