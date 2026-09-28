@@ -117,7 +117,7 @@ const callbackQuerySchema = z
   .object({
     code: z.string().min(1).optional(),
     error: z.string().min(1).optional(),
-    state: z.string().min(1),
+    state: z.string().min(1).max(512),
   })
   .refine(({ code, error }) => Boolean(code) !== Boolean(error));
 

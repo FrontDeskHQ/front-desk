@@ -185,7 +185,8 @@ const exchangeCode = async (
   const teams = [...firstTeamsPage.nodes];
   let pageInfo = firstTeamsPage.pageInfo;
   while (pageInfo.hasNextPage) {
-    if (!pageInfo.endCursor) {
+    const after = pageInfo.endCursor;
+    if (!after) {
       throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
     }
     const pageResponse = await requireOk(
@@ -197,7 +198,7 @@ const exchangeCode = async (
               pageInfo { endCursor hasNextPage }
             }
           }`,
-          variables: { after: pageInfo.endCursor },
+          variables: { after },
         }),
         headers: {
           authorization: `Bearer ${token.access_token}`,
@@ -211,8 +212,12 @@ const exchangeCode = async (
     if (!page.success || page.data.errors?.length || !page.data.data) {
       throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
     }
+    const nextPageInfo = page.data.data.teams.pageInfo;
+    if (nextPageInfo.hasNextPage && nextPageInfo.endCursor === after) {
+      throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
+    }
     teams.push(...page.data.data.teams.nodes);
-    pageInfo = page.data.data.teams.pageInfo;
+    pageInfo = nextPageInfo;
   }
 
   // A reconnect to a different workspace can leave the saved default team

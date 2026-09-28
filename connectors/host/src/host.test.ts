@@ -498,6 +498,25 @@ describe(createConnectorHost, () => {
       });
     });
 
+    it("rejects oversized callback state before decoding it", async () => {
+      const { hostApp, authorization } = authorizationHost();
+
+      const response = await hostApp.handle(
+        new Request(
+          `http://localhost/acme/authorization/callback?code=code&state=${"a".repeat(513)}`
+        )
+      );
+
+      expect({
+        exchanged: authorization.complete.mock.calls.length,
+        location: response.headers.get("location"),
+      }).toStrictEqual({
+        exchanged: 0,
+        location:
+          "https://frontdesk.test/app/settings/organization/integration/acme?error=missing_params",
+      });
+    });
+
     it("hands the exchanged credential to core with the decoded nonce", async () => {
       const { hostApp, authorization, core } = authorizationHost();
       const state = encodeAuthorizationState("acme", "integration-1", "nonce");

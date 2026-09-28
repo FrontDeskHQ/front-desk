@@ -196,6 +196,43 @@ describe(createLinearAuthorization, () => {
     });
   });
 
+  it("rejects a team page whose cursor does not advance", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            organization: { id: "workspace-1", name: "Acme" },
+            teams: {
+              nodes: [],
+              pageInfo: { endCursor: "cursor-1", hasNextPage: true },
+            },
+            viewer: { id: "app-user-1" },
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            teams: {
+              nodes: [],
+              pageInfo: { endCursor: "cursor-1", hasNextPage: true },
+            },
+          },
+        })
+      );
+
+    await expect(
+      authorizationFor(fetcher).complete({
+        code: "oauth-code",
+        config: null,
+        integrationId: "integration-1",
+      })
+    ).rejects.toThrow("LINEAR_WORKSPACE_LOOKUP_FAILED");
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
   it("keeps a default team that still exists", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
