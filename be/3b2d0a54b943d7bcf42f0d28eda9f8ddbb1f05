@@ -1,0 +1,95 @@
+connectors/host/README.md
+  s_51e7ffb326d67d::t_16b29809430db9 12,17-18
+connectors/host/src/provider.ts
+  s_51e7ffb326d67d::t_b22321386f6fb3 21-22,26-61
+connectors/host/src/host.test.ts
+  s_51e7ffb326d67d::t_8cdb5f940e3198 437-439,442,444-445,451-452,456,460,462-466,469-475,477,479,481,483-498,500,502,504-532,534,536-545,547-552,554-571
+  s_51e7ffb326d67d::t_5537098abc5502 7-12,440-441,443,447-450,453-455,457-459,461,467-468,476,480,482,501,503,533,535,546,553
+connectors/host/src/credential-store.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 40
+  s_51e7ffb326d67d::t_940f91e4edc6f7 1,3,5-10,12-28,30-36,38-39,41-46,50-83
+connectors/host/src/linear-authorization.ts
+  s_51e7ffb326d67d::t_4aed01a49c3df3 107-109
+  s_51e7ffb326d67d::t_26ae4519750f24 1,4-7,31-33,54,99-106,110-116,118-119,135-137,166,168-190,192-244
+connectors/host/src/linear-provider.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 102
+connectors/host/src/linear-client.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 217
+  s_51e7ffb326d67d::t_433151c0cc0902 3-5,14,19-20,26,34,45-59,66,69-73,75-79,82,90,133,141,143-159,162,164-169,172,174-182,184-187,189,199,201,204,209,211,214-216,218-220,222,225,233
+connectors/host/src/index.ts
+  s_51e7ffb326d67d::t_2e8b4fe0e81796 4-7,10-14,23,41-45,47,62-64,66-80,94-100
+connectors/host/src/credential-store.fake.ts
+  s_51e7ffb326d67d::t_5804a870b7f8f3 48-70
+  s_51e7ffb326d67d::t_a07620b97ea9cd 1-47
+connectors/host/src/linear-webhook.test.ts
+  s_51e7ffb326d67d::t_25b65316c54d22 153,163,206
+connectors/host/src/linear-sync.test.ts
+  s_51e7ffb326d67d::t_25b65316c54d22 4
+  s_51e7ffb326d67d::t_5804a870b7f8f3 43,156,198
+connectors/framework/src/invoke.ts
+  s_51e7ffb326d67d::t_f8047288e73392 154
+CONTEXT.md
+  s_51e7ffb326d67d::t_15c936e737eba4 154-157
+apps/web/src/routes/app/_workspace/settings/organization/integration/linear/index.tsx
+  s_51e7ffb326d67d::t_60e0630d73bc24 91,93,106,108,116,141,151
+  s_51e7ffb326d67d::t_67c3743021f5bf 248
+connectors/framework/src/manifest.ts
+  s_51e7ffb326d67d::t_089f371fdd936f 24-29,81
+connectors/host/src/linear-client.test.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 138
+  s_51e7ffb326d67d::t_a07620b97ea9cd 3,6-24,31-36,39,43,57-62,64-69,73-83,86,88-92,96-101,108-109,111,115-116,120,124-134,140,144,152-159,168,170,178-205,207-208
+  s_51e7ffb326d67d::t_5537098abc5502 110,117-119,206,209-211
+connectors/host/.env.local.example
+  s_51e7ffb326d67d::t_16b29809430db9 9
+connectors/host/src/host.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 177-190,192-211
+  s_51e7ffb326d67d::t_40fa00904ee335 4-8,12,18,20-25,28-29,36-37,116-176,191,215,224-232
+connectors/host/src/linear-authorization.test.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 100
+  s_51e7ffb326d67d::t_4486399f357eec 3-4,6,8,14-15,18-51,53-78,102-106,117,134-139,146-157,159-207,211-219,226-230,252-256,267-271,287
+  s_51e7ffb326d67d::t_5537098abc5502 52
+connectors/host/src/linear.ts
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 10
+apps/api/src/lib/integration-credential.ts
+  s_51e7ffb326d67d::t_34fea90ebfd835 162-170,174,180-183,188,194,202-208,212,217,219,232,235-236,242-244,249,262-270
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 237-241
+connectors/framework/src/index.ts
+  s_51e7ffb326d67d::t_f8047288e73392 84-98
+connectors/host/src/linear-webhook.ts
+  s_51e7ffb326d67d::t_36f607a5269ecf 106
+apps/api/src/live-state/router/integration.ts
+  s_51e7ffb326d67d::t_ac4115f1583fed 1,4,7-8,25-27,63-72,74-76,79-95,98,445-450,455-456,462,464-496,500,504-549,551,553-557,563-617,619-637,639-649,664,669-670,676-677,679-680
+  s_51e7ffb326d67d::t_5537098abc5502 550,552,558-562
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 618
+connectors/host/src/linear.test.ts
+  s_51e7ffb326d67d::t_5804a870b7f8f3 3,17,71,103,137,160-163,191,221,250,277,297,355
+  s_51e7ffb326d67d::t_e3bb7ebbaa33a2 168
+  s_51e7ffb326d67d::t_3af0bf9e67ae92 84-95,97,99-101,215-219
+connectors/framework/src/registry.ts
+  s_51e7ffb326d67d::t_089f371fdd936f 1-4,24-29,72-73
+docs/adr/0024-core-owns-authorization-custody.md
+  s_51e7ffb326d67d::t_2b395075fb2938 1-18
+connectors/framework/src/authorization.ts
+  s_51e7ffb326d67d::t_f8047288e73392 3-13,15-18,22-24,26-28,30-36,38-40,42-50,52-59,61,63-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "be3b2d0a54b943d7bcf42f0d28eda9f8ddbb1f05",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_51e7ffb326d67d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dad5b149-010f-4e01-b791-e690ac85796b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
