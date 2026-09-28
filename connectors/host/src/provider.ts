@@ -58,6 +58,8 @@ export interface AuthorizationCore {
     connectorType: string;
     configPatch: Record<string, unknown>;
     credential: unknown;
+    /** Exact config read before exchange, used to reject concurrent edits. */
+    expectedConfig: string | null;
     integrationId: string;
     state: string;
   }): Promise<void>;

@@ -518,6 +518,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       connectorType: z.string().min(1),
       configPatch: z.record(z.string(), z.unknown()),
       credential: credentialValueSchema,
+      expectedConfig: z.string().nullable(),
       integrationId: z.string().min(1),
       state: z.string().min(1),
     })
@@ -536,6 +537,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       }
       if (integration.type !== req.input.connectorType) {
         throw new Error("AUTHORIZATION_CONNECTOR_TYPE_MISMATCH");
+      }
+      if (integration.configStr !== req.input.expectedConfig) {
+        throw new Error("AUTHORIZATION_CONFIG_CHANGED");
       }
 
       const pendingState = (

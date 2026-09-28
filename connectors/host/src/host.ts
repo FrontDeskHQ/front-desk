@@ -213,6 +213,7 @@ const registerAuthorizationRoutes = (
         connectorType: type,
         configPatch,
         credential,
+        expectedConfig: config,
         integrationId: state.integrationId,
         state: state.nonce,
       });

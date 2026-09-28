@@ -537,6 +537,7 @@ describe(createConnectorHost, () => {
           connectorType: "acme",
           configPatch: { workspaceId: "workspace-1" },
           credential: { token: "secret" },
+          expectedConfig: '{"defaultTeamId":"team-1"}',
           integrationId: "integration-1",
           state: "nonce",
         },
