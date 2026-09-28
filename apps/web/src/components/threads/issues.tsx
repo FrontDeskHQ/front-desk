@@ -13,6 +13,7 @@ import {
   ComboboxEmpty,
   ComboboxGroup,
   ComboboxGroupContent,
+  ComboboxGroupLabel,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
@@ -72,6 +73,78 @@ type LinkedIssue = Pick<
   | "closedAt"
   | "provider"
 >;
+
+type IssueComboboxItem = BaseItem & {
+  issue: MirrorEntity;
+};
+
+type IssueOriginGroup = BaseItemGroup<string, IssueComboboxItem> & {
+  origin: string;
+  provider: string;
+};
+
+type IssuePickerGroup = IssueOriginGroup | (BaseItemGroup & { footer: true });
+
+/** Container an issue lives in: a GitHub repo, a Linear team, and so on. */
+const issueOrigin = (
+  issue: Pick<MirrorEntity, "containerId" | "containerLabel" | "provider" | "repoFullName">
+): { key: string; label: string } => {
+  const label = issue.containerLabel || issue.repoFullName;
+  return {
+    key: issue.containerId || `${issue.provider}:${label}`,
+    label,
+  };
+};
+
+/**
+ * Reference shown beside the title. Repository issues drop `org/repo` because
+ * that lives on the group; other trackers keep their own id (`FRO-227`).
+ */
+const formatIssuePickerReference = (
+  issue: Pick<MirrorEntity, "containerKind" | "number" | "shortId">
+): string => {
+  const isRepository =
+    issue.containerKind === "repository" || !issue.containerKind;
+  if (!isRepository) {
+    return issue.shortId ?? "";
+  }
+
+  const id = issue.shortId || (issue.number ? String(issue.number) : "");
+  return id ? `#${id}` : "";
+};
+
+const groupIssuesByOrigin = (issues: MirrorEntity[]): IssueOriginGroup[] => {
+  const groups = new Map<string, IssueOriginGroup>();
+
+  for (const issue of issues) {
+    const origin = issueOrigin(issue);
+    let group = groups.get(origin.key);
+    if (!group) {
+      group = {
+        items: [],
+        origin: origin.label,
+        provider: issue.provider,
+        value: origin.key,
+      };
+      groups.set(origin.key, group);
+    }
+
+    group.items.push({
+      issue,
+      label: `${formatMirrorEntityLabel(issue)} ${issue.title}`,
+      value: issue.externalKey,
+    });
+  }
+
+  return [...groups.values()].toSorted((a, b) =>
+    a.origin.localeCompare(b.origin)
+  );
+};
+
+const isFooterGroup = (
+  group: IssuePickerGroup
+): group is BaseItemGroup & { footer: true } =>
+  "footer" in group && group.footer === true;
 
 interface IssuesSectionProps {
   threadId: string;
@@ -134,20 +207,15 @@ export function IssuesSection({
   // The link list only offers open issues; the linked issue itself resolves from
   // the full mirror so an already-linked closed issue still displays.
   const openIssues = issues.filter((issue) => !issue.closedAt);
+  const originGroups = groupIssuesByOrigin(openIssues);
+  const showOriginGroups = originGroups.length > 1;
 
-  const comboboxItems = prepareFooter(
-    openIssues.map((issue) => ({
-      issue,
-      label: `${formatMirrorEntityLabel(issue)} ${issue.title}`,
-      value: issue.externalKey,
-    })),
-    [
-      {
-        label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
-        value: `footer:create_issue`,
-      },
-    ]
-  );
+  const comboboxItems = prepareFooter(originGroups, [
+    {
+      label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
+      value: `footer:create_issue`,
+    },
+  ]);
 
   const linkedIssue: LinkedIssue | undefined =
     issues.find((issue) => issue.externalKey === externalIssueId) ??
@@ -414,45 +482,67 @@ export function IssuesSection({
                   </ActionButton>
                 }
               />
-              <ComboboxContent className="w-60 max-h-120" side="left">
+              <ComboboxContent className="w-96 max-h-120" side="left">
                 <ComboboxInput
                   placeholder="Search..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 <ComboboxEmpty>No issues found</ComboboxEmpty>
-                <ComboboxList className="overflow-hidden flex flex-col">
-                  {(group: BaseItemGroup) =>
-                    group.footer ? (
-                      <ComboboxGroup key={group.value} items={group.items}>
-                        <ComboboxSeparator />
-                        <ComboboxItem
-                          value="footer:create_issue"
-                          onClick={handleOpenCreateDialog}
-                        >
-                          <Plus className="size-4" />
-                          Create issue
-                        </ComboboxItem>
-                      </ComboboxGroup>
-                    ) : (
-                      <ComboboxGroup
-                        key={group.value}
-                        items={group.items}
-                        className="overflow-auto grow shrink"
-                      >
-                        <ComboboxGroupContent>
-                          {(item: BaseItem & { issue: MirrorEntity }) => (
-                            <ComboboxItem key={item.value} value={item.value}>
-                              <span>{formatMirrorEntityLabel(item.issue)}</span>
-                              <span className="truncate">
-                                {item.issue.title}
-                              </span>
-                            </ComboboxItem>
-                          )}
-                        </ComboboxGroupContent>
-                      </ComboboxGroup>
-                    )
-                  }
+                <ComboboxList className="flex min-h-0 shrink grow flex-col overflow-hidden">
+                  <div
+                    role="presentation"
+                    className="min-h-0 shrink grow overflow-y-auto"
+                  >
+                    <ComboboxGroupContent>
+                      {(group: IssuePickerGroup) =>
+                        isFooterGroup(group) ? null : (
+                          <ComboboxGroup
+                            key={group.value}
+                            items={group.items}
+                          >
+                            {showOriginGroups ? (
+                              <ComboboxGroupLabel className="flex items-center gap-1.5 bg-popover px-3">
+                                {group.provider === "github" ? (
+                                  <Github className="size-3 shrink-0" />
+                                ) : (
+                                  <CircleDot className="size-3 shrink-0 text-[#5E6AD2]" />
+                                )}
+                                <span className="min-w-0 truncate">
+                                  {group.origin}
+                                </span>
+                              </ComboboxGroupLabel>
+                            ) : null}
+                            <ComboboxGroupContent>
+                              {(item: IssueComboboxItem) => (
+                                <ComboboxItem
+                                  key={item.value}
+                                  value={item.value}
+                                  className="min-w-0"
+                                >
+                                  <span className="shrink-0 whitespace-nowrap text-foreground-secondary">
+                                    {formatIssuePickerReference(item.issue)}
+                                  </span>
+                                  <span className="min-w-0 flex-1 truncate">
+                                    {item.issue.title}
+                                  </span>
+                                </ComboboxItem>
+                              )}
+                            </ComboboxGroupContent>
+                          </ComboboxGroup>
+                        )
+                      }
+                    </ComboboxGroupContent>
+                  </div>
+                  <ComboboxSeparator className="shrink-0" />
+                  <ComboboxItem
+                    className="shrink-0"
+                    value="footer:create_issue"
+                    onClick={handleOpenCreateDialog}
+                  >
+                    <Plus className="size-4" />
+                    Create issue
+                  </ComboboxItem>
                 </ComboboxList>
               </ComboboxContent>
             </Combobox>
