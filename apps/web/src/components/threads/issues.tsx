@@ -53,6 +53,8 @@ import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 
+import { getIssueState, IssueStateIndicator } from "./issue-state";
+
 import {
   entityMatchesQuery,
   formatMirrorEntityLabel,
@@ -72,6 +74,7 @@ type LinkedIssue = Pick<
   | "containerKind"
   | "closedAt"
   | "provider"
+  | "state"
 >;
 
 type IssueComboboxItem = BaseItem & {
@@ -302,6 +305,7 @@ export function IssuesSection({
             ? externalNumber
             : Number(result.issue.shortId) || 0,
         provider: result.issue.id.startsWith("linear:") ? "linear" : "github",
+        state: "open",
         title: result.issue.title || variables.title,
         repoFullName: containerLabel,
         shortId: result.issue.shortId,
@@ -461,11 +465,10 @@ export function IssuesSection({
                   >
                     {linkedIssue ? (
                       <>
-                        {linkedIssue.provider === "github" ? (
-                          <Github className="size-4 shrink-0" />
-                        ) : (
-                          <CircleDot className="size-4 shrink-0 text-[#5E6AD2]" />
-                        )}
+                        <IssueStateIndicator
+                          state={getIssueState(linkedIssue)}
+                          className="size-4"
+                        />
                         <span className="truncate shrink grow text-left">
                           {formatMirrorEntityLabel(linkedIssue)}{" "}
                           {linkedIssue.title}
@@ -520,6 +523,9 @@ export function IssuesSection({
                                   value={item.value}
                                   className="min-w-0"
                                 >
+                                  <IssueStateIndicator
+                                    state={getIssueState(item.issue)}
+                                  />
                                   <span className="shrink-0 whitespace-nowrap text-foreground-secondary">
                                     {formatIssuePickerReference(item.issue)}
                                   </span>

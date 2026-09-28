@@ -21,7 +21,6 @@ import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
 import {
   ArrowRight,
-  CircleCheck,
   CircleDot,
   CircleUser,
   GitMerge,
@@ -34,6 +33,11 @@ import {
   getPullRequestState,
   useMirrorEntityByRef,
 } from "~/components/threads/external-entities";
+import {
+  getIssueState,
+  getIssueStateLabel,
+  IssueStateIndicator,
+} from "~/components/threads/issue-state";
 import type {
   MirrorEntity,
   PullRequestState,
@@ -415,37 +419,9 @@ function PrChipButton({
   );
 }
 
-type IssueState = "open" | "closed";
-
-const issueStateConfig: Record<
-  IssueState,
-  { label: string; icon: typeof CircleDot; className: string }
-> = {
-  closed: {
-    className: "text-purple-600 dark:text-purple-500",
-    icon: CircleCheck,
-    label: "Closed",
-  },
-  open: {
-    className: "text-green-600 dark:text-green-500",
-    icon: CircleDot,
-    label: "Open",
-  },
-};
-
-const getIssueState = (entity: Pick<MirrorEntity, "state">): IssueState =>
-  entity.state === "closed" ? "closed" : "open";
-
-function IssueStateIndicator({ state }: { state: IssueState }) {
-  const { label, icon: Icon, className } = issueStateConfig[state];
-  return (
-    <Icon className={cn("size-3.5 shrink-0", className)} aria-label={label} />
-  );
-}
-
 function IssueSummaryCard({ entity }: { entity: MirrorEntity }) {
   const issueState = getIssueState(entity);
-  const { label } = issueStateConfig[issueState];
+  const label = getIssueStateLabel(issueState);
 
   return (
     <ExternalEntitySummaryCard
@@ -479,7 +455,7 @@ export function IssueChip({
 
   if (entity) {
     const issueState = getIssueState(entity);
-    const { label } = issueStateConfig[issueState];
+    const label = getIssueStateLabel(issueState);
 
     const chip = (
       <PrChipButton
