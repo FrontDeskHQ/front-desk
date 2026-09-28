@@ -1,24 +1,40 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import {
+  AUTHORIZATION_CALLBACK_PATH,
+  AUTHORIZATION_REVOKE_PATH,
+  AUTHORIZATION_URL_PATH,
+  authorizationRevokeRequestSchema,
+  authorizationUrlRequestSchema,
   CAPABILITY_INVOKE_PATH,
   CAPABILITY_INVOKE_SECRET_HEADER,
   CONNECTION_PROBE_PATH,
+  decodeAuthorizationState,
   invokeEnvelopeSchema,
   probeRequestSchema,
 } from "@connectors/framework";
 import Elysia from "elysia";
 import type { AnyElysia } from "elysia";
+import { z } from "zod";
 
-import type { HostedConnector, HostedConnectorProvider } from "./provider";
+import type {
+  AuthorizationCore,
+  HostedAuthorization,
+  HostedConnector,
+  HostedConnectorProvider,
+} from "./provider";
 
 export type {
+  AuthorizationCore,
+  HostedAuthorization,
   HostedConnector,
   HostedConnectorProvider,
   HostedConnectorResult,
 } from "./provider";
 
 interface ConnectorHostOptions {
+  /** Required for providers whose connector implements authorization. */
+  authorizationCore?: AuthorizationCore;
   providers: HostedConnectorProvider[];
   secret: string | undefined;
 }
@@ -97,7 +113,128 @@ const registerConnectorRoutes = (
   );
 };
 
+const callbackQuerySchema = z
+  .object({
+    code: z.string().min(1).optional(),
+    error: z.string().min(1).optional(),
+    state: z.string().min(1).max(512),
+  })
+  .refine(({ code, error }) => Boolean(code) !== Boolean(error));
+
+const registerAuthorizationRoutes = (
+  app: AnyElysia,
+  type: string,
+  authorization: HostedAuthorization,
+  core: AuthorizationCore | undefined,
+  secret: string | undefined
+) => {
+  const prefix = `/${type}`;
+  app.post(`${prefix}${AUTHORIZATION_URL_PATH}`, ({ body, headers, set }) => {
+    if (!authorized(headers, secret)) {
+      set.status = 401;
+      return { error: "UNAUTHORIZED" };
+    }
+    const parsed = authorizationUrlRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      set.status = 400;
+      return { error: "INVALID_AUTHORIZATION_REQUEST" };
+    }
+    try {
+      return {
+        url: authorization.authorizeUrl({
+          config: parsed.data.config,
+          integrationId: parsed.data.integrationId,
+          state: parsed.data.state,
+        }),
+      };
+    } catch (error) {
+      console.error(`[connector-host] ${type} authorize URL failed`, error);
+      set.status = 503;
+      return { error: "AUTHORIZATION_NOT_CONFIGURED" };
+    }
+  });
+
+  app.post(
+    `${prefix}${AUTHORIZATION_REVOKE_PATH}`,
+    async ({ body, headers, set }) => {
+      if (!authorized(headers, secret)) {
+        set.status = 401;
+        return { error: "UNAUTHORIZED" };
+      }
+      const parsed = authorizationRevokeRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        set.status = 400;
+        return { error: "INVALID_REVOKE_REQUEST" };
+      }
+      try {
+        return await authorization.revoke({
+          integrationId: parsed.data.integrationId,
+        });
+      } catch (error) {
+        console.error(`[connector-host] ${type} revoke failed`, error);
+        set.status = 503;
+        return { error: "AUTHORIZATION_REVOKE_FAILED" };
+      }
+    }
+  );
+
+  app.get(`${prefix}${AUTHORIZATION_CALLBACK_PATH}`, async ({ query, set }) => {
+    if (!core) {
+      set.status = 503;
+      return { error: "AUTHORIZATION_NOT_CONFIGURED" };
+    }
+    const settingsUrl = `${core.frontendBaseUrl}/app/settings/organization/integration/${type}`;
+    const parsed = callbackQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
+    }
+    const state = decodeAuthorizationState(parsed.data.state);
+    if (!state || state.connectorType !== type) {
+      return Response.redirect(`${settingsUrl}?error=invalid_state`, 302);
+    }
+    if (parsed.data.error) {
+      const providerErrorQuery = new URLSearchParams({
+        error: parsed.data.error,
+      });
+      return Response.redirect(`${settingsUrl}?${providerErrorQuery}`, 302);
+    }
+    if (!parsed.data.code) {
+      return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
+    }
+
+    try {
+      const config = await core.readConfig(state.integrationId);
+      const { configPatch, credential } = await authorization.complete({
+        code: parsed.data.code,
+        config,
+        integrationId: state.integrationId,
+      });
+      await core.complete({
+        connectorType: type,
+        configPatch,
+        credential,
+        expectedConfig: config,
+        integrationId: state.integrationId,
+        state: state.nonce,
+      });
+    } catch (error) {
+      console.error(`[connector-host] ${type} authorization failed`, error);
+      return Response.redirect(`${settingsUrl}?error=callback_error`, 302);
+    }
+    try {
+      authorization.onCompleted?.(state.integrationId);
+    } catch (error) {
+      console.error(
+        `[connector-host] ${type} post-authorization hook failed`,
+        error
+      );
+    }
+    return Response.redirect(settingsUrl, 302);
+  });
+};
+
 export const createConnectorHost = ({
+  authorizationCore,
   providers,
   secret,
 }: ConnectorHostOptions): ConnectorHost => {
@@ -106,6 +243,15 @@ export const createConnectorHost = ({
   for (const provider of providers) {
     provider.registerRoutes(app);
     registerConnectorRoutes(app, provider.connector, secret);
+    if (provider.connector.authorization) {
+      registerAuthorizationRoutes(
+        app,
+        provider.connector.type,
+        provider.connector.authorization,
+        authorizationCore,
+        secret
+      );
+    }
   }
 
   let started = false;

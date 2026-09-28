@@ -1,3 +1,7 @@
+import {
+  AUTHORIZATION_REVOKE_PATH,
+  AUTHORIZATION_URL_PATH,
+} from "./authorization";
 import type { Capability } from "./capabilities";
 import { ACTION_INVOKE_PATH, CAPABILITY_INVOKE_PATH } from "./invoke";
 import { manifests as defaultManifests } from "./manifest";
@@ -17,6 +21,12 @@ export interface RegistryEntry {
    * `manifest.supportsConnectionProbe` is true.
    */
   probeUrl: string;
+  /**
+   * Fully-resolved authorization endpoints. Only meaningful when
+   * `manifest.supportsAuthorization` is true.
+   */
+  authorizationUrl: string;
+  authorizationRevokeUrl: string;
 }
 
 export interface ConnectorRegistry {
@@ -59,6 +69,8 @@ export function buildRegistry(
     entries.set(manifest.type, {
       baseUrl,
       actionInvokeUrl: `${baseUrl}${ACTION_INVOKE_PATH}`,
+      authorizationRevokeUrl: `${baseUrl}${AUTHORIZATION_REVOKE_PATH}`,
+      authorizationUrl: `${baseUrl}${AUTHORIZATION_URL_PATH}`,
       invokeUrl: `${baseUrl}${CAPABILITY_INVOKE_PATH}`,
       manifest,
       probeUrl: `${baseUrl}${CONNECTION_PROBE_PATH}`,

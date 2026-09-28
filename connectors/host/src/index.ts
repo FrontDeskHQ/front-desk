@@ -1,9 +1,17 @@
 import { createLiveStateClient } from "@connectors/framework/runtime";
 import dotenv from "dotenv";
 
+import {
+  createAuthorizationCore,
+  createCredentialStore,
+} from "./credential-store";
 import { createConnectorHost } from "./host";
 import { createLinearConnector } from "./linear";
-import { readLinearOAuthEnvironment } from "./linear-oauth";
+import {
+  createLinearAuthorization,
+  readLinearOAuthEnvironment,
+} from "./linear-authorization";
+import type { LinearClientEnvironment } from "./linear-client";
 import { createLinearProvider } from "./linear-provider";
 import { createLinearSync } from "./linear-sync";
 import { createLinearWebhookQueue } from "./linear-webhook";
@@ -12,6 +20,7 @@ dotenv.config({ path: [".env.local", ".env"] });
 
 const port = Number.parseInt(process.env.PORT ?? "3336", 10);
 let oauthEnvironment: ReturnType<typeof readLinearOAuthEnvironment> | undefined;
+let linearClientEnvironment: LinearClientEnvironment | undefined;
 let linearSync: ReturnType<typeof createLinearSync> | undefined;
 let linearWebhookSecret: string | undefined;
 let linearFetchClient:
@@ -29,8 +38,13 @@ try {
     label: "Linear",
   });
   linearFetchClient = liveState.fetchClient;
+  linearClientEnvironment = {
+    clientId: oauthEnvironment.clientId,
+    clientSecret: oauthEnvironment.clientSecret,
+    credentials: createCredentialStore(liveState.fetchClient),
+  };
   linearSync = createLinearSync({
-    environment: oauthEnvironment,
+    environment: linearClientEnvironment,
     fetchClient: liveState.fetchClient,
   });
 } catch (error) {
@@ -45,9 +59,25 @@ const linearWebhookQueue =
       })
     : undefined;
 
+const linearConnector = createLinearConnector({
+  environment: linearClientEnvironment,
+});
 const linearProvider = createLinearProvider({
-  connector: createLinearConnector({ environment: oauthEnvironment }),
-  environment: oauthEnvironment,
+  connector:
+    oauthEnvironment && linearClientEnvironment
+      ? {
+          ...linearConnector,
+          authorization: createLinearAuthorization({
+            clientEnvironment: linearClientEnvironment,
+            environment: oauthEnvironment,
+            onCompleted: (integrationId) => {
+              linearSync?.syncIntegration(integrationId).catch((error) => {
+                console.error("[Linear] Initial reconciliation failed:", error);
+              });
+            },
+          }),
+        }
+      : linearConnector,
   sync:
     linearSync && linearFetchClient && linearWebhookQueue
       ? {
@@ -61,6 +91,13 @@ const linearProvider = createLinearProvider({
 });
 
 const connectorHost = createConnectorHost({
+  authorizationCore:
+    linearFetchClient && oauthEnvironment
+      ? createAuthorizationCore(
+          linearFetchClient,
+          oauthEnvironment.frontendBaseUrl
+        )
+      : undefined,
   providers: [linearProvider],
   secret: process.env.DISCORD_BOT_KEY,
 });

@@ -1,6 +1,7 @@
 import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { describe, expect, it, vi } from "vitest";
 
+import { createStaticCredentialStore } from "./credential-store.fake";
 import { buildLinearIssueFields, createLinearSync } from "./linear-sync";
 import type { LinearIssue } from "./linear-sync";
 
@@ -32,28 +33,14 @@ const syncIssueHarness = (upstreamIssue: LinearIssue | null) => {
   } as unknown as LiveStateFetchClient;
   const fetcher = vi
     .fn<typeof fetch>()
-    .mockResolvedValueOnce(
-      Response.json({
-        credential: {
-          accessToken: "token",
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          refreshToken: "refresh",
-          scope: "read issues:create",
-          tokenType: "Bearer",
-          viewerId: "viewer",
-        },
-        organizationId: "frontdesk-org",
-      })
-    )
     .mockResolvedValueOnce(Response.json({ data: { issue: upstreamIssue } }));
   return {
     softDelete,
     sync: createLinearSync({
       environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
         clientId: "client",
         clientSecret: "secret",
-        connectorSecret: "connector",
+        credentials: createStaticCredentialStore("token", "frontdesk-org"),
       },
       fetchClient,
       fetcher,
@@ -138,19 +125,6 @@ describe(createLinearSync, () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
         Response.json({
-          credential: {
-            accessToken: "token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer",
-          },
-          organizationId: "frontdesk-org",
-        })
-      )
-      .mockResolvedValueOnce(
-        Response.json({
           data: {
             issues: {
               nodes: [issue()],
@@ -177,10 +151,9 @@ describe(createLinearSync, () => {
       );
     const sync = createLinearSync({
       environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
         clientId: "client",
         clientSecret: "secret",
-        connectorSecret: "connector",
+        credentials: createStaticCredentialStore("token", "frontdesk-org"),
       },
       fetchClient,
       fetcher,
@@ -220,10 +193,9 @@ describe(createLinearSync, () => {
     } as unknown as LiveStateFetchClient;
     const sync = createLinearSync({
       environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
         clientId: "client",
         clientSecret: "secret",
-        connectorSecret: "connector",
+        credentials: createStaticCredentialStore("token", "frontdesk-org"),
       },
       fetchClient,
       fetcher,

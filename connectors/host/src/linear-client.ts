@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-const credentialSchema = z.object({
+import type { IntegrationCredentialStore } from "./credential-store";
+
+export const linearCredentialSchema = z.object({
   accessToken: z.string().min(1),
   expiresAt: z.string().datetime(),
   refreshToken: z.string().min(1),
@@ -9,18 +11,19 @@ const credentialSchema = z.object({
   viewerId: z.string().min(1),
 });
 
-export type LinearCredential = z.infer<typeof credentialSchema>;
+export type LinearCredential = z.infer<typeof linearCredentialSchema>;
 
 export interface LinearCredentialContext {
   credential: LinearCredential;
   organizationId: string;
+  /** Core's credential version this value was read at or written as. */
+  version: number;
 }
 
 export interface LinearClientEnvironment {
-  apiBaseUrl: string;
   clientId: string;
   clientSecret: string;
-  connectorSecret: string;
+  credentials: IntegrationCredentialStore;
 }
 
 const credentialLoads = new Map<string, Promise<LinearCredentialContext>>();
@@ -28,6 +31,7 @@ const pendingCredentials = new Map<string, LinearCredentialContext>();
 const LINEAR_REQUEST_TIMEOUT_MS = 15_000;
 const CREDENTIAL_REFRESH_WINDOW_MS = 5 * 60_000;
 const CREDENTIAL_PERSIST_ATTEMPTS = 3;
+const CREDENTIAL_ROTATION_ATTEMPTS = 3;
 
 export interface LinearRequestOptions {
   signal?: AbortSignal;
@@ -38,47 +42,44 @@ const requestSignal = (signal?: AbortSignal): AbortSignal =>
     ? AbortSignal.any([signal, AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS)])
     : AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS);
 
-const requestCredential = async (
-  environment: LinearClientEnvironment,
-  body: unknown,
-  fetcher: typeof fetch,
-  options: LinearRequestOptions = {}
-): Promise<Response> =>
-  fetcher(
-    `${environment.apiBaseUrl}/api/internal/integrations/linear/credential`,
-    {
-      body: JSON.stringify(body),
-      headers: {
-        "content-type": "application/json",
-        "x-connector-host-key": environment.connectorSecret,
-      },
-      method: "POST",
-      redirect: "error",
-      signal: requestSignal(options.signal),
-    }
-  );
+const parseStored = (
+  stored: Awaited<ReturnType<IntegrationCredentialStore["read"]>>
+): LinearCredentialContext | null =>
+  stored
+    ? {
+        credential: linearCredentialSchema.parse(stored.credential),
+        organizationId: stored.organizationId,
+        version: stored.version,
+      }
+    : null;
+
+type PersistOutcome =
+  | { status: "written"; context: LinearCredentialContext }
+  | { status: "conflict" }
+  | { status: "failed" };
 
 const persistCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
   context: LinearCredentialContext,
-  fetcher: typeof fetch,
   options: LinearRequestOptions = {}
-): Promise<boolean> => {
+): Promise<PersistOutcome> => {
   for (let attempt = 0; attempt < CREDENTIAL_PERSIST_ATTEMPTS; attempt++) {
     try {
-      const response = await requestCredential(
-        environment,
-        { credential: context.credential, integrationId, operation: "write" },
-        fetcher,
-        options
+      const result = await environment.credentials.write(
+        integrationId,
+        context.credential,
+        context.version,
+        { signal: requestSignal(options.signal) }
       );
-      if (response.ok) {
-        return true;
-      }
+      if (!result.ok) return { status: "conflict" };
+      return {
+        context: { ...context, version: result.version },
+        status: "written",
+      };
     } catch (error) {
       if (options.signal?.aborted) throw error;
-      // A later attempt may succeed; retain the refreshed value if the broker
+      // A later attempt may succeed; retain the refreshed value if core
       // remains unavailable after the bounded retry window.
     }
   }
@@ -86,7 +87,7 @@ const persistCredential = async (
   console.error(
     `[Linear] Failed to persist refreshed credential for ${integrationId}`
   );
-  return false;
+  return { status: "failed" };
 };
 
 const refreshLinearCredential = async (
@@ -129,6 +130,7 @@ const refreshLinearCredential = async (
       viewerId: context.credential.viewerId,
     },
     organizationId: context.organizationId,
+    version: context.version,
   };
 };
 
@@ -136,46 +138,55 @@ const isCredentialUsable = (context: LinearCredentialContext): boolean =>
   new Date(context.credential.expiresAt).getTime() >
   Date.now() + CREDENTIAL_REFRESH_WINDOW_MS;
 
-const persistOrRemember = async (
+const readStored = async (
   integrationId: string,
-  context: LinearCredentialContext,
+  environment: LinearClientEnvironment,
+  options: LinearRequestOptions
+): Promise<LinearCredentialContext | null> =>
+  parseStored(
+    await environment.credentials.read(integrationId, {
+      signal: requestSignal(options.signal),
+    })
+  );
+
+/**
+ * Refresh an expiring credential and store it with compare-and-swap. When
+ * another writer rotated first, its credential wins: re-read and use it (or
+ * refresh from it) instead of persisting a token Linear already invalidated.
+ */
+const rotate = async (
+  integrationId: string,
+  stale: LinearCredentialContext,
   environment: LinearClientEnvironment,
   fetcher: typeof fetch,
-  options: LinearRequestOptions = {}
+  options: LinearRequestOptions
 ): Promise<LinearCredentialContext> => {
-  if (
-    await persistCredential(
+  let current = stale;
+  for (let attempt = 0; attempt < CREDENTIAL_ROTATION_ATTEMPTS; attempt++) {
+    const refreshed = isCredentialUsable(current)
+      ? current
+      : await refreshLinearCredential(current, environment, fetcher, options);
+    const outcome = await persistCredential(
       integrationId,
       environment,
-      context,
-      fetcher,
+      refreshed,
       options
-    )
-  ) {
+    );
+    if (outcome.status === "written") {
+      pendingCredentials.delete(integrationId);
+      return outcome.context;
+    }
+    if (outcome.status === "failed") {
+      pendingCredentials.set(integrationId, refreshed);
+      return refreshed;
+    }
     pendingCredentials.delete(integrationId);
-  } else {
-    pendingCredentials.set(integrationId, context);
+    const latest = await readStored(integrationId, environment, options);
+    if (!latest) throw new Error("LINEAR_CREDENTIAL_NOT_FOUND");
+    if (isCredentialUsable(latest)) return latest;
+    current = latest;
   }
-  return context;
-};
-
-const loadPendingCredential = async (
-  integrationId: string,
-  pending: LinearCredentialContext,
-  environment: LinearClientEnvironment,
-  fetcher: typeof fetch,
-  options: LinearRequestOptions = {}
-): Promise<LinearCredentialContext> => {
-  const current = isCredentialUsable(pending)
-    ? pending
-    : await refreshLinearCredential(pending, environment, fetcher, options);
-  return persistOrRemember(
-    integrationId,
-    current,
-    environment,
-    fetcher,
-    options
-  );
+  throw new Error("LINEAR_CREDENTIAL_ROTATION_CONFLICT");
 };
 
 const loadLinearCredential = async (
@@ -185,89 +196,50 @@ const loadLinearCredential = async (
   options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext> => {
   const pending = pendingCredentials.get(integrationId);
-  let response: Response;
+  let stored: LinearCredentialContext | null;
   try {
-    response = await requestCredential(
-      environment,
-      { integrationId, operation: "read" },
-      fetcher,
-      options
-    );
+    stored = await readStored(integrationId, environment, options);
   } catch (error) {
     if (pending) {
-      return loadPendingCredential(
-        integrationId,
-        pending,
-        environment,
-        fetcher,
-        options
-      );
+      return rotate(integrationId, pending, environment, fetcher, options);
     }
     throw error;
   }
 
-  if (!response.ok) {
-    if (response.status !== 404 && pending) {
-      return loadPendingCredential(
-        integrationId,
-        pending,
-        environment,
-        fetcher,
-        options
-      );
-    }
+  if (!stored) {
     pendingCredentials.delete(integrationId);
-    throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
+    throw new Error("LINEAR_CREDENTIAL_NOT_FOUND");
   }
 
-  // A successful broker read is authoritative. A pending value can be left
-  // behind by a failed persistence attempt, but it must never overwrite a
-  // credential that was replaced by a later OAuth completion.
-  pendingCredentials.delete(integrationId);
-  const parsed = z
-    .object({ credential: credentialSchema, organizationId: z.string() })
-    .parse(await response.json());
-
-  if (isCredentialUsable(parsed)) {
-    return parsed;
+  // A pending value is a refresh core never acknowledged. It was derived from
+  // the stored version it carries; if core has moved past that version (a
+  // reconnect or another rotation), the stored credential is authoritative.
+  const base = pending && pending.version === stored.version ? pending : stored;
+  if (base === stored) pendingCredentials.delete(integrationId);
+  if (isCredentialUsable(base) && base === stored) {
+    return stored;
   }
-
-  const refreshed = await refreshLinearCredential(
-    parsed,
-    environment,
-    fetcher,
-    options
-  );
-  return persistOrRemember(
-    integrationId,
-    refreshed,
-    environment,
-    fetcher,
-    options
-  );
+  return rotate(integrationId, base, environment, fetcher, options);
 };
 
-/** Read the brokered credential without refreshing or rotating it. */
+/** Read the stored credential without refreshing or rotating it. */
 export const readLinearCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch = fetch,
   options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext | null> => {
   const pending = pendingCredentials.get(integrationId);
-  if (pending) return pending;
-
-  const response = await requestCredential(
-    environment,
-    { integrationId, operation: "read" },
-    fetcher,
-    options
-  );
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
-  return z
-    .object({ credential: credentialSchema, organizationId: z.string() })
-    .parse(await response.json());
+  try {
+    const stored = await readStored(integrationId, environment, options);
+    if (!stored) pendingCredentials.delete(integrationId);
+    else if (pending && pending.version !== stored.version) {
+      pendingCredentials.delete(integrationId);
+    }
+    return stored;
+  } catch (error) {
+    if (pending) return pending;
+    throw error;
+  }
 };
 
 export const getLinearCredential = (

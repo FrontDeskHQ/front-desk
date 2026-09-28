@@ -150,7 +150,7 @@ describe(handleLinearWebhook, () => {
 
 describe(handleLinearWebhook, () => {
   it("finalizes a disconnect when Linear revokes the OAuth app", async () => {
-    const markLinearRevoked = vi
+    const markRevoked = vi
       .fn<(input: { integrationId: string }) => Promise<{ ok: boolean }>>()
       .mockResolvedValue({ ok: true });
     const integration = {
@@ -160,7 +160,7 @@ describe(handleLinearWebhook, () => {
       organizationId: "organization-id",
     };
     const fetchClient = {
-      mutate: { integration: { markLinearRevoked } },
+      mutate: { integration: { markRevoked } },
       query: {
         integration: {
           byId: vi.fn<() => Promise<unknown>>().mockResolvedValue(integration),
@@ -203,7 +203,7 @@ describe(handleLinearWebhook, () => {
       }
     );
 
-    expect(markLinearRevoked).toHaveBeenCalledWith({
+    expect(markRevoked).toHaveBeenCalledWith({
       integrationId: "integration-id",
     });
   });

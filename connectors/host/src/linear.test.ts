@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createStaticCredentialStore } from "./credential-store.fake";
 import { createLinearConnector } from "./linear";
 
 const config = JSON.stringify({
@@ -11,10 +12,9 @@ const config = JSON.stringify({
 
 describe(createLinearConnector, () => {
   const environment = {
-    apiBaseUrl: "https://api.frontdesk.test",
     clientId: "client-id",
     clientSecret: "client-secret",
-    connectorSecret: "connector-secret",
+    credentials: createStaticCredentialStore("access-token", "organization-id"),
   };
 
   const outcomePayload = {
@@ -33,19 +33,6 @@ describe(createLinearConnector, () => {
     relationPages: unknown[][] = []
   ) => {
     const fetcher = vi.fn<typeof fetch>();
-    fetcher.mockResolvedValueOnce(
-      Response.json({
-        credential: {
-          accessToken: "access-token",
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          refreshToken: "refresh-token",
-          scope: "read issues:create",
-          tokenType: "Bearer",
-          viewerId: "viewer-id",
-        },
-        organizationId: "organization-id",
-      })
-    );
     const pages = [
       {
         nodes: relations,
@@ -81,12 +68,7 @@ describe(createLinearConnector, () => {
       );
     }
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
     return connector.invoke({
@@ -99,46 +81,26 @@ describe(createLinearConnector, () => {
   };
 
   it("creates only a title, description, and team and returns a neutral issue", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
-      .mockResolvedValueOnce(
-        Response.json({
-          data: {
-            issueCreate: {
-              issue: {
-                description: "Details",
-                id: "issue-id",
-                identifier: "ENG-42",
-                state: { type: "backlog" },
-                team: { id: "team-1", key: "ENG", name: "Engineering" },
-                title: "Broken settings",
-                url: "https://linear.app/acme/issue/ENG-42/broken-settings",
-              },
-              success: true,
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      Response.json({
+        data: {
+          issueCreate: {
+            issue: {
+              description: "Details",
+              id: "issue-id",
+              identifier: "ENG-42",
+              state: { type: "backlog" },
+              team: { id: "team-1", key: "ENG", name: "Engineering" },
+              title: "Broken settings",
+              url: "https://linear.app/acme/issue/ENG-42/broken-settings",
             },
+            success: true,
           },
-        })
-      );
+        },
+      })
+    );
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
 
@@ -172,7 +134,7 @@ describe(createLinearConnector, () => {
         url: "https://linear.app/acme/issue/ENG-42/broken-settings",
       },
     });
-    const graphqlBody = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body));
+    const graphqlBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
     expect(graphqlBody.variables).toStrictEqual({
       input: {
         description: "Details",
@@ -186,19 +148,6 @@ describe(createLinearConnector, () => {
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
-      .mockResolvedValueOnce(
         Response.json({ data: { viewer: { id: "viewer-id" } } })
       );
     const connector = createLinearConnector({ environment, fetcher });
@@ -208,15 +157,15 @@ describe(createLinearConnector, () => {
     ).resolves.toStrictEqual({ live: true });
     expect({
       calls: fetcher.mock.calls.length,
-      method: fetcher.mock.calls[1]?.[1]?.method,
-      query: JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body ?? "{}")).query,
-      url: fetcher.mock.calls[1]?.[0],
-      authorization: new Headers(fetcher.mock.calls[1]?.[1]?.headers).get(
+      method: fetcher.mock.calls[0]?.[1]?.method,
+      query: JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body ?? "{}")).query,
+      url: fetcher.mock.calls[0]?.[0],
+      authorization: new Headers(fetcher.mock.calls[0]?.[1]?.headers).get(
         "authorization"
       ),
     }).toStrictEqual({
       authorization: "Bearer access-token",
-      calls: 2,
+      calls: 1,
       method: "POST",
       query: "query FrontDeskViewerProbe { viewer { id } }",
       url: "https://api.linear.app/graphql",
@@ -236,72 +185,10 @@ describe(createLinearConnector, () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("revokes the current access token on disconnect", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
-      .mockResolvedValueOnce(new Response(null, { status: 200 }));
-    const connector = createLinearConnector({ environment, fetcher });
-
-    await expect(
-      connector.invoke({
-        capability: "issue-tracker",
-        config,
-        integrationId: "integration-id",
-        method: "disconnect",
-        payload: {},
-      })
-    ).resolves.toStrictEqual({ body: { ok: true }, status: 200 });
-    expect(fetcher.mock.calls[1]?.[0]).toBe(
-      "https://api.linear.app/oauth/revoke"
-    );
-    expect(String(fetcher.mock.calls[1]?.[1]?.body)).toBe(
-      "token=access-token&token_type_hint=access_token"
-    );
-  });
-
-  it("treats a missing credential as an already-revoked disconnect", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(null, { status: 404 }));
-    const connector = createLinearConnector({ environment, fetcher });
-
-    await expect(
-      connector.invoke({
-        capability: "issue-tracker",
-        config,
-        integrationId: "integration-id",
-        method: "disconnect",
-        payload: {},
-      })
-    ).resolves.toStrictEqual({
-      body: { alreadyRevoked: true, ok: true },
-      status: 200,
-    });
-    expect(fetcher).toHaveBeenCalledOnce();
-  });
-
   it("rejects a team outside the connected workspace config", async () => {
     const fetcher = vi.fn<typeof fetch>();
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
 
@@ -325,33 +212,13 @@ describe(createLinearConnector, () => {
   });
 
   it("maps a provider-declared create failure to a bad gateway", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
-      .mockResolvedValueOnce(
-        Response.json({
-          data: { issueCreate: { issue: null, success: false } },
-        })
-      );
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      Response.json({
+        data: { issueCreate: { issue: null, success: false } },
+      })
+    );
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
 
@@ -377,28 +244,10 @@ describe(createLinearConnector, () => {
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
-      .mockResolvedValueOnce(
         Response.json({ errors: [{ message: "denied" }] })
       );
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
 
@@ -423,27 +272,9 @@ describe(createLinearConnector, () => {
   it("returns an unknown outcome without retrying an ambiguous timeout", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
       .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
 
@@ -463,7 +294,7 @@ describe(createLinearConnector, () => {
       body: { error: "CREATE_OUTCOME_UNKNOWN" },
       status: 504,
     });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("maps completed and canceled workflow categories", async () => {
@@ -519,27 +350,9 @@ describe(createLinearConnector, () => {
   it("bounds outcome reads and returns a timeout outcome", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({
-          credential: {
-            accessToken: "access-token",
-            expiresAt: "2099-01-01T00:00:00.000Z",
-            refreshToken: "refresh-token",
-            scope: "read issues:create",
-            tokenType: "Bearer",
-            viewerId: "viewer-id",
-          },
-          organizationId: "organization-id",
-        })
-      )
       .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
     const connector = createLinearConnector({
-      environment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-      },
+      environment,
       fetcher,
     });
 

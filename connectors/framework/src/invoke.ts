@@ -151,7 +151,7 @@ const assertSecretTransport = (invokeUrl: string): void => {
   }
 };
 
-const invokeRemote = async <Result = unknown>(
+export const invokeRemote = async <Result = unknown>(
   invokeUrl: string,
   envelope: unknown,
   options: RemoteInvokeOptions
