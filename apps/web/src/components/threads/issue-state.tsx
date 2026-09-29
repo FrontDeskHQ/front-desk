@@ -40,6 +40,7 @@ export function IssueStateIndicator({
   return (
     <Icon
       className={cn("size-3.5 shrink-0", stateClassName, className)}
+      role="img"
       aria-label={label}
     />
   );
