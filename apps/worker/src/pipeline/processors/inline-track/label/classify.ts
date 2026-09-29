@@ -34,7 +34,7 @@ const customerMessage = (input: ClassifyLabelInput): string => {
     input.threadName ? `Title: ${input.threadName}` : null,
     input.firstMessageContent,
   ];
-  if (!input.firstMessageContent && input.summary) {
+  if (!input.firstMessageContent?.trim() && input.summary) {
     parts.push(input.summary.shortDescription);
   }
   return parts.filter(Boolean).join("\n\n") || "(empty)";
@@ -106,9 +106,5 @@ export const classifyLabel = async (
       best = result;
     }
   }
-  const confidence = best?.p_present ?? 0;
-  return {
-    confidence,
-    labelId: best && confidence >= SUGGEST_THRESHOLD ? best.id : null,
-  };
+  return { confidence: best?.p_present ?? 0, labelId: best?.id ?? null };
 };

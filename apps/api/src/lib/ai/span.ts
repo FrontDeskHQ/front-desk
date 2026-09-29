@@ -81,11 +81,15 @@ export class SpanScoreError extends Error {
 /** Scorer unreachable, rate limited, unavailable, or timed out. */
 const RETRYABLE_STATUS = new Set([424, 429, 503, 504]);
 const MAX_ATTEMPTS = 3;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 const delay = (ms: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
+
+const isProbability = (value: unknown): value is number =>
+  typeof value === "number" && value >= 0 && value <= 1;
 
 const isResult = (value: unknown): value is SpanBehaviorResult => {
   if (value === null || typeof value !== "object") {
@@ -94,9 +98,9 @@ const isResult = (value: unknown): value is SpanBehaviorResult => {
   const record = value as Record<string, unknown>;
   return (
     typeof record.id === "string" &&
-    typeof record.p_present === "number" &&
-    typeof record.p_absent === "number" &&
-    typeof record.p_not_observable === "number"
+    isProbability(record.p_present) &&
+    isProbability(record.p_absent) &&
+    isProbability(record.p_not_observable)
   );
 };
 
@@ -131,7 +135,8 @@ const requestBody = (input: ScoreWithSpanInput): Record<string, unknown> => {
 
 /**
  * Score one span against named behaviors.
- * Retries 424, 429, 503, and 504 with exponential backoff.
+ * Retries network errors, timeouts, and 424, 429, 503, and 504 with
+ * exponential backoff.
  */
 export const scoreWithSpan = async (
   input: ScoreWithSpanInput,
@@ -146,20 +151,35 @@ export const scoreWithSpan = async (
   const sleep = options.sleep ?? delay;
   const body = JSON.stringify(requestBody(input));
 
-  let lastError: SpanScoreError | undefined;
+  let lastError: Error | undefined;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await sleep(200 * 2 ** (attempt - 1));
     }
 
-    const response = await fetchImpl(RESPAN_SCORES_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${respanApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body,
-    });
+    let response: Response;
+    try {
+      response = await fetchImpl(RESPAN_SCORES_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${respanApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      // fetch rejects with TypeError on network failure and TimeoutError on
+      // the deadline; anything else is a caller bug.
+      if (
+        error instanceof TypeError ||
+        (error instanceof DOMException && error.name === "TimeoutError")
+      ) {
+        lastError = error;
+        continue;
+      }
+      throw error;
+    }
 
     if (response.ok) {
       const payload: unknown = await response.json();
