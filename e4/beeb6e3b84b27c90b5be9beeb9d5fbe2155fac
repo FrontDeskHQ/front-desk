@@ -1,0 +1,31 @@
+apps/api/package.json
+  s_f30c44342e22ae::t_fc1cfafd9d98de 36-39
+apps/api/src/lib/ai/span.ts
+  s_f30c44342e22ae::t_03cf328f9cfb9f 2-3,5-8,11-12,14-15,17,19,21-23,26-29,32-39,42-46,51-61,64,69,74-75,81-82,90-103,110-111,115,117-119,121,123-126,133-134,136-139,142,147,149,155,166-167,169,176,182,184-189
+docs/plans/span-llm-replacements.md
+  s_f30c44342e22ae::t_6627232c88c01a 1,3,5-7,15,21,27,31,33,39,43,47-49
+apps/worker/src/lib/respan.ts
+  s_f30c44342e22ae::t_5c74f6460e57bc 90-96,98-103
+apps/api/.env.local.example
+  s_f30c44342e22ae::t_fc1cfafd9d98de 31
+apps/worker/.env.local.example
+  s_f30c44342e22ae::t_fc1cfafd9d98de 5
+apps/api/src/lib/ai/span.test.ts
+  s_f30c44342e22ae::t_e5ea356fd8c990 4-22,25-30,33-38,47-50,52-55,60,62,64,66,68,74-76,80,82-92,95-99,102,104,110,114,120,123,127,130,134,140,143-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e4beeb6e3b84b27c90b5be9beeb9d5fbe2155fac",
+  "prompts": {},
+  "sessions": {
+    "s_f30c44342e22ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "067439c8-fbd7-4fed-8a9d-1f08cb909e60",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
