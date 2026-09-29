@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { createAILogger, createLogger } from "@workspace/utils/logging";
+import { createLogger } from "@workspace/utils/logging";
 
-import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { isRetryableError } from "../../../../lib/logging";
 import type {
   ProcessorDefinition,
@@ -10,10 +9,8 @@ import type {
   ProcessorResult,
 } from "../../../core/types";
 import type { SummarizeOutput } from "../../summarize";
-import { classifyLabel } from "./classify";
+import { classifyLabel, SUGGEST_THRESHOLD } from "./classify";
 
-// Below this score the classifier emits nothing.
-const SUGGEST_THRESHOLD = 0.5;
 // Auto-apply floor. Hardcoded rather than an org setting: nobody can calibrate
 // this number from the settings page, and a real complaint should justify
 // exposing it (ADR 0014).
@@ -62,7 +59,6 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         processor: "label_classifier",
         threadId,
       });
-      const ai = createAILogger(requestLog, { cost: AI_PRICING });
       let status = 200;
 
       try {
@@ -125,7 +121,6 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
             summary: summarizeOutput?.summary ?? null,
             threadName: thread.name ?? null,
           },
-          ai,
           run.audit
         );
 

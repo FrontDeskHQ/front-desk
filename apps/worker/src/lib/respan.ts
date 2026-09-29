@@ -85,3 +85,19 @@ export const respan = (): OpenAIProvider => {
 
 export const generationModel = (model: string = GENERATION_MODEL) =>
   respan().chat(model);
+
+export {
+  RESPAN_SCORES_URL,
+  SPAN_FREE_MODEL,
+  SPAN_PRO_MODEL,
+  SpanScoreError,
+  scoreWithSpan,
+  spanResultsById,
+} from "api/ai/span";
+export type {
+  ScoreWithSpanInput,
+  SpanBehavior,
+  SpanBehaviorResult,
+  SpanMessage,
+  SpanScore,
+} from "api/ai/span";
