@@ -16,7 +16,7 @@ import { ulid } from "ulid";
 import type { z } from "zod";
 
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
-import { SyncStatus } from "~/components/integration-settings/sync-status";
+import { ThreadImport } from "~/components/integration-settings/thread-import";
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
@@ -224,9 +224,10 @@ function RouteComponent() {
         </CardContent>
       </Card>
       {integration?.enabled && (
-        <SyncStatus
-          backfill={parsedConfig?.data?.backfill}
-          integrationType="discord"
+        <ThreadImport
+          canImport={(parsedConfig?.data?.selectedChannels ?? []).length > 0}
+          integrationId={integration.id}
+          status={integration.threadImport ?? null}
         />
       )}
     </div>

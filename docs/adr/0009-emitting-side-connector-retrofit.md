@@ -8,6 +8,8 @@ Tracked as a sibling mini-project to FRO-190 (not more children of it): FRO-190 
 
 accepted
 
+> **Amended (2026-09-29, FRO-225).** Automatic backfill on channel selection is gone. History comes in only through the owner's explicit "Import threads" action: the connector finds and loads complete threads (`@connectors/framework/runtime` `runThreadImport`), and the core stores each one with `ingest.importThread` in one transaction, enforces the plan's import allowance, and enqueues its single thread read. `ingest` no longer takes `isBackfill`; imported messages carry it, and it suppresses their per-message read trigger.
+
 ## Decisions
 
 - **Ingest is a live-state custom mutation procedure, not HTTP.** The two capability legs are genuinely asymmetric: the invoked leg is HTTP because it is core → connector, but ingest is connector → core, where the connectors are already live-state clients. A typed `mutate.ingest(...)` procedure gives the API server-side ownership of normalization while preserving real-time sync and the typed client. Forcing HTTP symmetry on the inbound leg buys nothing real and would stand up a second inbound transport + auth surface.

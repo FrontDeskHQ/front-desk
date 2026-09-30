@@ -26,7 +26,11 @@ import {
   writeIntegrationCredential,
   writeIntegrationCredentialInTransaction,
 } from "../../lib/integration-credential";
-import { enqueueGithubBackfill, enqueueIssueIndex } from "../../lib/queue";
+import {
+  enqueueGithubBackfill,
+  enqueueIssueIndex,
+  enqueueThreadImport,
+} from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import { slackChannelsCache } from "./slack-channels";
@@ -70,6 +74,9 @@ const credentialValueSchema = z
   .refine((value) => value !== undefined && value !== null, {
     message: "CREDENTIAL_REQUIRED",
   });
+
+/** Support connectors that implement "Import threads". */
+const THREAD_IMPORT_PROVIDERS = new Set(["discord", "slack"]);
 
 const AUTHORIZATION_STATE_TTL_MS = 10 * 60_000;
 
@@ -420,9 +427,8 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         updatedAt: now,
       });
 
-      // Type-gated: backfill-on-reenable is github's own catch-up path. Other
-      // connectors re-enable without one (discord backfills off its own
-      // integration-change subscription).
+      // Type-gated: backfill-on-reenable is github's own catch-up path. Support
+      // connectors import history only when the owner asks ("Import threads").
       if (integration.type === "github") {
         await enqueueGithubReenableBackfill(
           integration.organizationId,
@@ -675,6 +681,51 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       }
       await finalizeDisconnect(db, current);
       return { ok: true };
+    }
+  ),
+
+  /**
+   * "Import threads": start importing the newest eligible history from the
+   * integration's selected support channels, up to the organization's
+   * allowance. Owner-triggered only; selecting channels never imports.
+   */
+  importThreads: mutation(integrationIdInputSchema).handler(
+    async ({ req, db }) => {
+      const integration = await db.integration
+        .one(req.input.integrationId)
+        .get();
+      if (!integration) {
+        throw errors.notFound("integration");
+      }
+      authorize(req, {
+        organizationId: integration.organizationId,
+        role: "owner",
+      });
+      if (!THREAD_IMPORT_PROVIDERS.has(integration.type)) {
+        throw errors.badRequest(
+          "THREAD_IMPORT_NOT_SUPPORTED",
+          "This integration can't import threads."
+        );
+      }
+      if (!integration.enabled) {
+        throw errors.badRequest(
+          "INTEGRATION_DISABLED",
+          "Reconnect the integration before importing threads."
+        );
+      }
+
+      // The connector owns `threadImport` from its first report, so this
+      // handler never writes it and can't overwrite a live run's progress.
+      const outcome = await enqueueThreadImport(integration.type, {
+        integrationId: integration.id,
+      });
+      if (outcome === "queue_unavailable") {
+        throw errors.serviceUnavailable(
+          "THREAD_IMPORT_UNAVAILABLE",
+          "Importing threads is unavailable right now. Try again in a moment."
+        );
+      }
+      return { outcome };
     }
   ),
 

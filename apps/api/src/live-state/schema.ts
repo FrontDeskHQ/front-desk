@@ -11,6 +11,7 @@ import {
   timestamp as liveTimestamp,
 } from "@live-state/sync";
 import type { SupportChannel } from "@workspace/schemas/early-access";
+import type { ThreadImportStatus } from "@workspace/schemas/integration/shared";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import type {
   Hints,
@@ -76,6 +77,9 @@ const thread = object("thread", {
   externalOrigin: string().nullable(),
   externalMetadataStr: string().nullable(),
   shortId: number().nullable(),
+  // Set when "Import threads" created this thread from provider history. The
+  // count of these per organization is the used import allowance.
+  importedAt: timestamp().nullable(),
   agentRead: json<ThreadRead | null>().nullable(),
   inlineSuggestions: json<InlineSuggestion[]>().default([]),
   hints: json<Hints>().default({}),
@@ -138,6 +142,7 @@ const integration = object("integration", {
   updatedAt: timestamp(),
   // TODO make this a JSON object when live-state supports it
   configStr: string().nullable(),
+  threadImport: json<ThreadImportStatus>().nullable(),
 });
 
 // Encrypted connector authorization. Server-only: no route or organization
