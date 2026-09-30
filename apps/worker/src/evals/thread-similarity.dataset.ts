@@ -1217,6 +1217,7 @@ export const convertToThread = (data: FakeThreadData): Thread => {
     externalPrId: null,
     hints: {},
     id: data.id,
+    importedAt: null,
     inlineSuggestions: [],
     labels: data.labels.map((labelName) => ({
       id: `label_${data.id}_${labelName}`,

@@ -279,6 +279,9 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
       const { organizationId } = integration;
 
       const result = await db.transaction(async ({ trx }) => {
+        // TODO: enforce (organizationId, externalOrigin, externalId) as unique
+        // once live-state supports composite indexes; until then a live
+        // ingest racing this import for the same thread can duplicate it.
         const existing = await trx.thread
           .first({
             externalId: externalThreadId,

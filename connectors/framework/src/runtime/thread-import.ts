@@ -129,10 +129,14 @@ async function* newestFirst(
  * eligible don't spend allowance, so the run keeps going past them. The core
  * enforces the allowance on every thread; the up-front read only paces the
  * run and sizes its progress.
+ *
+ * The source is resolved inside the run so a provider that can't be reached
+ * still ends in a reported `done` (with a failure) instead of the last state.
+ * `null` means there is nothing to read (no install or no channels).
  */
 export const runThreadImport = async (
   context: ThreadImportContext,
-  source: ThreadImportSource
+  resolveSource: () => Promise<ThreadImportSource | null>
 ): Promise<void> => {
   const startedAt = new Date().toISOString();
   let failed = 0;
@@ -141,6 +145,11 @@ export const runThreadImport = async (
 
   try {
     await report(context, { startedAt, state: "finding" });
+
+    const source = await resolveSource();
+    if (!source) {
+      return;
+    }
 
     const { remaining } =
       await context.fetchClient.mutate.ingest.threadImportAllowance({
@@ -197,6 +206,14 @@ export const runThreadImport = async (
         failed += 1;
       }
     }
+  } catch (error) {
+    // The job isn't retried (Import again is the recovery), so the error
+    // ends here as a reported failure.
+    console.error(
+      `[thread-import] Import failed for integration ${context.integrationId}:`,
+      error
+    );
+    failed += 1;
   } finally {
     await report(context, {
       exhausted,
@@ -216,8 +233,9 @@ export const runThreadImport = async (
 
 /**
  * Start the connector's import worker. `resolveSource` builds the provider
- * source for the integration, or returns `null` when the connector cannot
- * reach it (no install, no selected channels): the run then finishes empty.
+ * source for the integration, or returns `null` when there is nothing to read
+ * (no install, no selected channels): the run then finishes empty. A throw is
+ * reported as a failed run.
  */
 export const startThreadImportWorker = (options: {
   fetchClient: LiveStateFetchClient;
@@ -229,17 +247,13 @@ export const startThreadImportWorker = (options: {
   createWorker<ThreadImportJobData>(
     threadImportQueueName(options.provider),
     async (job) => {
-      const source = (await options.resolveSource(job.data)) ?? {
-        channels: [],
-        load: async () => null,
-      };
       await runThreadImport(
         {
           fetchClient: options.fetchClient,
           integrationId: job.data.integrationId,
           provider: options.provider,
         },
-        source
+        () => options.resolveSource(job.data)
       );
     },
     // Imports are sequential per connector process; provider rate limits
