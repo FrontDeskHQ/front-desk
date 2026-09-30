@@ -13,6 +13,7 @@ import {
   ComboboxEmpty,
   ComboboxGroup,
   ComboboxGroupContent,
+  ComboboxGroupLabel,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
@@ -43,7 +44,14 @@ import {
 } from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useAtomValue } from "jotai/react";
-import { ArrowRight, CircleDot, Github, Loader2, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  CircleDashed,
+  CircleDot,
+  Github,
+  Loader2,
+  Plus,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -51,6 +59,8 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { fetchClient, mutate, query } from "~/lib/live-state";
+
+import { getIssueState, IssueStateIndicator } from "./issue-state";
 
 import {
   entityMatchesQuery,
@@ -71,7 +81,125 @@ type LinkedIssue = Pick<
   | "containerKind"
   | "closedAt"
   | "provider"
+  | "state"
 >;
+
+type IssueComboboxItem = BaseItem & {
+  issue: MirrorEntity;
+};
+
+type IssueOriginGroup = BaseItemGroup<string, IssueComboboxItem> & {
+  origin: string;
+  provider: string;
+};
+
+const NO_ISSUE_VALUE = "none:no_issue";
+
+type IssuePickerGroup =
+  | IssueOriginGroup
+  | (BaseItemGroup & { footer: true })
+  | (BaseItemGroup & { value: "none" });
+
+/** Container an issue lives in: a GitHub repo, a Linear team, and so on. */
+const issueOrigin = (
+  issue: Pick<MirrorEntity, "containerId" | "containerLabel" | "provider" | "repoFullName">
+): { key: string; label: string } => {
+  const label = issue.containerLabel || issue.repoFullName;
+  return {
+    key: issue.containerId || `${issue.provider}:${label}`,
+    label,
+  };
+};
+
+/**
+ * Reference shown beside the title. Repository issues drop `org/repo` because
+ * that lives on the group; other trackers keep their own id (`FRO-227`).
+ */
+const formatIssuePickerReference = (
+  issue: Pick<MirrorEntity, "containerKind" | "number" | "shortId">
+): string => {
+  const isRepository =
+    issue.containerKind === "repository" || !issue.containerKind;
+  if (!isRepository) {
+    return issue.shortId ?? "";
+  }
+
+  const id = issue.shortId || (issue.number ? String(issue.number) : "");
+  return id ? `#${id}` : "";
+};
+
+const pinSelectedIssue = (
+  groups: IssueOriginGroup[],
+  selectedKey: string | null
+): IssueOriginGroup[] => {
+  if (!selectedKey) {
+    return groups;
+  }
+
+  const selectedGroup = groups.find((group) =>
+    group.items.some((item) => item.value === selectedKey)
+  );
+  const selectedItem = selectedGroup?.items.find(
+    (item) => item.value === selectedKey
+  );
+  if (!(selectedGroup && selectedItem)) {
+    return groups;
+  }
+
+  const pinnedGroup = {
+    ...selectedGroup,
+    items: [
+      selectedItem,
+      ...selectedGroup.items.filter((item) => item.value !== selectedKey),
+    ],
+  };
+
+  return [
+    pinnedGroup,
+    ...groups.filter((group) => group.value !== selectedGroup.value),
+  ];
+};
+
+const groupIssuesByOrigin = (
+  issues: MirrorEntity[],
+  selectedKey: string | null
+): IssueOriginGroup[] => {
+  const groups = new Map<string, IssueOriginGroup>();
+
+  for (const issue of issues) {
+    const origin = issueOrigin(issue);
+    let group = groups.get(origin.key);
+    if (!group) {
+      group = {
+        items: [],
+        origin: origin.label,
+        provider: issue.provider,
+        value: origin.key,
+      };
+      groups.set(origin.key, group);
+    }
+
+    group.items.push({
+      issue,
+      label: `${formatMirrorEntityLabel(issue)} ${issue.title}`,
+      value: issue.externalKey,
+    });
+  }
+
+  const sorted = [...groups.values()].toSorted((a, b) =>
+    a.origin.localeCompare(b.origin)
+  );
+
+  return pinSelectedIssue(sorted, selectedKey);
+};
+
+const isFooterGroup = (
+  group: IssuePickerGroup
+): group is BaseItemGroup & { footer: true } =>
+  "footer" in group && group.footer === true;
+
+const isOriginGroup = (group: IssuePickerGroup): group is IssueOriginGroup =>
+  !isFooterGroup(group) && group.value !== "none";
 
 interface IssuesSectionProps {
   threadId: string;
@@ -131,16 +259,17 @@ export function IssuesSection({
     }
   }, [hasSyncedOptimisticIssue]);
 
-  // The link list only offers open issues; the linked issue itself resolves from
-  // the full mirror so an already-linked closed issue still displays.
-  const openIssues = issues.filter((issue) => !issue.closedAt);
+  const originGroups = groupIssuesByOrigin(issues, externalIssueId);
+  const showOriginGroups = originGroups.length > 1;
 
   const comboboxItems = prepareFooter(
-    openIssues.map((issue) => ({
-      issue,
-      label: `${formatMirrorEntityLabel(issue)} ${issue.title}`,
-      value: issue.externalKey,
-    })),
+    [
+      {
+        items: [{ label: "No issue", value: NO_ISSUE_VALUE }],
+        value: "none",
+      },
+      ...originGroups,
+    ],
     [
       {
         label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
@@ -234,6 +363,7 @@ export function IssuesSection({
             ? externalNumber
             : Number(result.issue.shortId) || 0,
         provider: result.issue.id.startsWith("linear:") ? "linear" : "github",
+        state: "open",
         title: result.issue.title || variables.title,
         repoFullName: containerLabel,
         shortId: result.issue.shortId,
@@ -320,7 +450,7 @@ export function IssuesSection({
           <div className="min-w-0 max-w-full overflow-hidden">
             <Combobox
               items={comboboxItems}
-              value={linkedIssue?.externalKey ?? ""}
+              value={linkedIssue?.externalKey ?? NO_ISSUE_VALUE}
               filter={(item, q) => {
                 const it = item as { value?: string; issue?: MirrorEntity };
                 if (
@@ -343,8 +473,11 @@ export function IssuesSection({
                 const oldIssue = issues.find(
                   (issue) => issue.externalKey === oldIssueId
                 );
-                // If clicking the same issue, unlink it
-                const newIssueId = oldIssueId === value ? null : value || null;
+                // Choosing "No issue", or the issue already linked, clears the link.
+                const newIssueId =
+                  value === NO_ISSUE_VALUE || oldIssueId === value
+                    ? null
+                    : value || null;
                 const newIssue = newIssueId
                   ? issues.find((issue) => issue.externalKey === newIssueId)
                   : undefined;
@@ -365,7 +498,7 @@ export function IssuesSection({
                     old_issue_number: oldIssue?.number,
                     repository: newIssue?.repoFullName,
                   });
-                } else {
+                } else if (oldIssueId) {
                   mutate.thread.unlinkIssue({
                     organizationId: currentOrg.id,
                     threadId,
@@ -393,11 +526,10 @@ export function IssuesSection({
                   >
                     {linkedIssue ? (
                       <>
-                        {linkedIssue.provider === "github" ? (
-                          <Github className="size-4 shrink-0" />
-                        ) : (
-                          <CircleDot className="size-4 shrink-0 text-[#5E6AD2]" />
-                        )}
+                        <IssueStateIndicator
+                          state={getIssueState(linkedIssue)}
+                          className="size-4"
+                        />
                         <span className="truncate shrink grow text-left">
                           {formatMirrorEntityLabel(linkedIssue)}{" "}
                           {linkedIssue.title}
@@ -405,7 +537,7 @@ export function IssuesSection({
                       </>
                     ) : (
                       <>
-                        <Github className="size-4 text-foreground-secondary" />
+                        <CircleDashed className="size-4 shrink-0 text-foreground-secondary" />
                         <span className="text-foreground-secondary">
                           Link issue
                         </span>
@@ -414,45 +546,74 @@ export function IssuesSection({
                   </ActionButton>
                 }
               />
-              <ComboboxContent className="w-60 max-h-120" side="left">
+              <ComboboxContent className="w-96 max-h-120" side="left">
                 <ComboboxInput
                   placeholder="Search..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 <ComboboxEmpty>No issues found</ComboboxEmpty>
-                <ComboboxList className="overflow-hidden flex flex-col">
-                  {(group: BaseItemGroup) =>
-                    group.footer ? (
-                      <ComboboxGroup key={group.value} items={group.items}>
-                        <ComboboxSeparator />
-                        <ComboboxItem
-                          value="footer:create_issue"
-                          onClick={handleOpenCreateDialog}
-                        >
-                          <Plus className="size-4" />
-                          Create issue
-                        </ComboboxItem>
-                      </ComboboxGroup>
-                    ) : (
-                      <ComboboxGroup
-                        key={group.value}
-                        items={group.items}
-                        className="overflow-auto grow shrink"
-                      >
-                        <ComboboxGroupContent>
-                          {(item: BaseItem & { issue: MirrorEntity }) => (
-                            <ComboboxItem key={item.value} value={item.value}>
-                              <span>{formatMirrorEntityLabel(item.issue)}</span>
-                              <span className="truncate">
-                                {item.issue.title}
-                              </span>
-                            </ComboboxItem>
-                          )}
-                        </ComboboxGroupContent>
-                      </ComboboxGroup>
-                    )
-                  }
+                <ComboboxList className="flex min-h-0 shrink grow flex-col overflow-hidden">
+                  <div
+                    role="presentation"
+                    className="min-h-0 shrink grow overflow-y-auto"
+                  >
+                    <ComboboxItem value={NO_ISSUE_VALUE}>
+                      <CircleDashed className="size-3.5 shrink-0" />
+                      No issue
+                    </ComboboxItem>
+                    <ComboboxGroupContent>
+                      {(group: IssuePickerGroup) =>
+                        isOriginGroup(group) ? (
+                          <ComboboxGroup
+                            key={group.value}
+                            items={group.items}
+                          >
+                            {showOriginGroups ? (
+                              <ComboboxGroupLabel className="flex items-center gap-1.5 bg-popover px-3">
+                                {group.provider === "github" ? (
+                                  <Github className="size-3 shrink-0" />
+                                ) : (
+                                  <CircleDot className="size-3 shrink-0 text-[#5E6AD2]" />
+                                )}
+                                <span className="min-w-0 truncate">
+                                  {group.origin}
+                                </span>
+                              </ComboboxGroupLabel>
+                            ) : null}
+                            <ComboboxGroupContent>
+                              {(item: IssueComboboxItem) => (
+                                <ComboboxItem
+                                  key={item.value}
+                                  value={item.value}
+                                  className="min-w-0"
+                                >
+                                  <IssueStateIndicator
+                                    state={getIssueState(item.issue)}
+                                  />
+                                  <span className="shrink-0 whitespace-nowrap text-foreground-secondary">
+                                    {formatIssuePickerReference(item.issue)}
+                                  </span>
+                                  <span className="min-w-0 flex-1 truncate">
+                                    {item.issue.title}
+                                  </span>
+                                </ComboboxItem>
+                              )}
+                            </ComboboxGroupContent>
+                          </ComboboxGroup>
+                        ) : null
+                      }
+                    </ComboboxGroupContent>
+                  </div>
+                  <ComboboxSeparator className="shrink-0" />
+                  <ComboboxItem
+                    className="shrink-0"
+                    value="footer:create_issue"
+                    onClick={handleOpenCreateDialog}
+                  >
+                    <Plus className="size-4" />
+                    Create issue
+                  </ComboboxItem>
                 </ComboboxList>
               </ComboboxContent>
             </Combobox>
