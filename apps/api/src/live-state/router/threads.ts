@@ -264,6 +264,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         externalOrigin: req.input.externalOrigin ?? null,
         externalPrId: null,
         id: threadId,
+        importedAt: null,
         name: req.input.title,
         organizationId,
         priority: 0,

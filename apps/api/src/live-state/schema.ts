@@ -79,7 +79,7 @@ const thread = object("thread", {
   shortId: number().nullable(),
   // Set when "Import threads" created this thread from provider history. The
   // count of these per organization is the used import allowance.
-  importedAt: timestamp().nullable(),
+  importedAt: timestamp().nullable().index(),
   agentRead: json<ThreadRead | null>().nullable(),
   inlineSuggestions: json<InlineSuggestion[]>().default([]),
   hints: json<Hints>().default({}),

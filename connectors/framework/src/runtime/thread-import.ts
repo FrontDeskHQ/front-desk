@@ -173,12 +173,18 @@ export const runThreadImport = async (
         exhausted = true;
         break;
       }
+      // Progress is best-effort; a missed update must not stop the import.
       await report(context, {
         failed,
         imported,
         startedAt,
         state: "importing",
         total: remaining,
+      }).catch((error) => {
+        console.error(
+          `[thread-import] Failed to report progress for integration ${context.integrationId}:`,
+          error
+        );
       });
 
       try {

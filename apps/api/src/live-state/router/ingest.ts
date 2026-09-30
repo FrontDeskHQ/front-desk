@@ -181,6 +181,7 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
           externalOrigin: provider,
           externalPrId: null,
           id: threadId,
+          importedAt: null,
           name: threadDescriptor.title,
           organizationId,
           priority: 0,

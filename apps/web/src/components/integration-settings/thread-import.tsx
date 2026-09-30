@@ -114,7 +114,10 @@ export function ThreadImport({
             Import threads
           </Button>
         </div>
-        <div className="mt-3 flex flex-col gap-1 text-sm">
+        <output
+          aria-live="polite"
+          className="mt-3 flex flex-col gap-1 text-sm"
+        >
           <div className="flex items-center gap-2">
             {running ? (
               <span className="relative flex size-2">
@@ -132,7 +135,7 @@ export function ThreadImport({
               Select a support channel to import its threads.
             </div>
           )}
-        </div>
+        </output>
       </CardContent>
     </Card>
   );

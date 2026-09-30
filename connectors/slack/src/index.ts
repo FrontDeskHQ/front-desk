@@ -470,6 +470,23 @@ const createSlackImportSource = (
     } while (cursor);
   }
 
+  // Sequential: each new author costs a Slack users.info call, so don't
+  // burst them against the rate limit.
+  const importMessages = async (
+    messages: (MessageElement & { ts: string; user: string })[]
+  ): Promise<ThreadImportPayload["messages"]> => {
+    const imported: ThreadImportPayload["messages"] = [];
+    for (const message of messages) {
+      imported.push({
+        author: await resolveAuthor(message.user),
+        body: parse(message.text || ""),
+        createdAt: new Date(Number.parseFloat(message.ts) * 1000),
+        externalMessageId: message.ts,
+      });
+    }
+    return imported;
+  };
+
   const load = async (
     candidate: ThreadImportCandidate
   ): Promise<ThreadImportPayload | null> => {
@@ -509,14 +526,7 @@ const createSlackImportSource = (
 
     return {
       externalThreadId: threadTs,
-      messages: await Promise.all(
-        messages.map(async (message) => ({
-          author: await resolveAuthor(message.user),
-          body: parse(message.text || ""),
-          createdAt: new Date(Number.parseFloat(message.ts) * 1000),
-          externalMessageId: message.ts,
-        }))
-      ),
+      messages: await importMessages(messages),
       thread: {
         externalMetadata: { channelId: channel.id },
         title: ensureThreadTitle(slackThreadTitle(root?.text, channel.name)),
