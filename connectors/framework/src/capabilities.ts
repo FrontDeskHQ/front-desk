@@ -120,7 +120,7 @@ export const supportEntryPointImportMessageSchema =
 export const supportEntryPointImportThreadSchema = z.object({
   externalThreadId: z.string().min(1),
   integrationId: z.string().min(1),
-  /** Chronological; the first message is the thread's root. */
+  /** Any order: the core sorts by `createdAt` and the earliest is the root. */
   messages: z.array(supportEntryPointImportMessageSchema).min(1),
   provider: z.string().min(1),
   thread: supportEntryPointThreadSchema,

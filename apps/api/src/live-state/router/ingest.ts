@@ -268,7 +268,11 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
       db,
     }): Promise<{ outcome: SupportEntryPointImportThreadOutcome }> => {
       requireInternalApiKey(req.context);
-      const { externalThreadId, messages, provider } = req.input;
+      const { externalThreadId, provider } = req.input;
+      // The root is the earliest message; don't trust connector ordering.
+      const messages = req.input.messages.toSorted(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+      );
       const integration = await requireIntegration(db, req.input.integrationId);
       if (integration.type !== provider) {
         throw errors.badRequest(
@@ -279,6 +283,16 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
       const { organizationId } = integration;
 
       const result = await db.transaction(async ({ trx }) => {
+        // Re-read in the transaction: an owner may disable the integration
+        // while a run is in flight.
+        const current = await trx.integration.one(integration.id).get();
+        if (!current?.enabled) {
+          throw errors.badRequest(
+            "INTEGRATION_DISABLED",
+            "The integration was disabled during the import"
+          );
+        }
+
         // TODO: enforce (organizationId, externalOrigin, externalId) as unique
         // once live-state supports composite indexes; until then a live
         // ingest racing this import for the same thread can duplicate it.

@@ -716,14 +716,19 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
 
       // The connector owns `threadImport` from its first report, so this
       // handler never writes it and can't overwrite a live run's progress.
+      const unavailable = (cause?: unknown) =>
+        errors.serviceUnavailable(
+          "THREAD_IMPORT_UNAVAILABLE",
+          "Importing threads is unavailable right now. Try again in a moment.",
+          cause === undefined ? undefined : { cause }
+        );
       const outcome = await enqueueThreadImport(integration.type, {
         integrationId: integration.id,
+      }).catch((cause: unknown) => {
+        throw unavailable(cause);
       });
       if (outcome === "queue_unavailable") {
-        throw errors.serviceUnavailable(
-          "THREAD_IMPORT_UNAVAILABLE",
-          "Importing threads is unavailable right now. Try again in a moment."
-        );
+        throw unavailable();
       }
       return { outcome };
     }

@@ -13,7 +13,12 @@ import type {
 } from "@connectors/framework/runtime";
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
-import { ChannelType, Client, GatewayIntentBits } from "discord.js";
+import {
+  ChannelType,
+  Client,
+  DiscordAPIError,
+  GatewayIntentBits,
+} from "discord.js";
 import type {
   ForumChannel,
   Message,
@@ -82,6 +87,11 @@ const ingestDiscordMessage = (args: {
 
 type ImportableChannel = TextChannel | ForumChannel;
 
+/** Discord "Missing Access" / "Missing Permissions" API errors. */
+const isMissingAccess = (error: unknown) =>
+  error instanceof DiscordAPIError &&
+  (error.code === 50_001 || error.code === 50_013);
+
 /**
  * "Import threads" source for one Discord integration. Threads under a
  * selected channel are support threads, and bot messages are dropped, exactly
@@ -110,10 +120,29 @@ const createDiscordImportSource = (
     const active = await channel.threads.fetchActive();
     yield toCandidates(active.threads.values());
 
+    yield* listArchived(channel, "public");
+    // Live ingestion also accepts private threads under a selected channel.
+    // Listing their archive needs Manage Threads; without it, skip them.
+    if (channel.type === ChannelType.GuildText) {
+      try {
+        yield* listArchived(channel, "private");
+      } catch (error) {
+        if (!isMissingAccess(error)) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  async function* listArchived(
+    channel: ImportableChannel,
+    type: "public" | "private"
+  ) {
     let before: Date | undefined;
     while (true) {
       const archived = await channel.threads.fetchArchived({
         limit: 100,
+        type,
         ...(before ? { before } : {}),
       });
       const page = [...archived.threads.values()];
