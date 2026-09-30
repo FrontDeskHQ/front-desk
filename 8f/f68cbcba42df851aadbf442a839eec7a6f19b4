@@ -1,0 +1,87 @@
+connectors/discord/src/index.ts
+  s_55e7ca245f68da::t_eef4ec2f84cdf0 106-108
+  s_55e7ca245f68da::t_b2e62e6893ad9d 185
+  s_55e7ca245f68da::t_48c87039c525bf 1-5,9-12,83-84,86-88,90-105,109-117,119-123,125,129-135,137-142,144-148,151-155,158,160-177,179-184,186-187,189-197,409-410,417-420,441
+apps/api/src/live-state/schema.ts
+  s_55e7ca245f68da::t_23d9a22d745787 14,80-82,145
+connectors/framework/package.json
+  s_55e7ca245f68da::t_42f5d1412747e4 17
+apps/web/src/routes/app/_workspace/settings/organization/integration/discord/index.tsx
+  s_55e7ca245f68da::t_2c09fc8dbb8e29 19,227-230
+connectors/framework/src/thread-import.ts
+  s_55e7ca245f68da::t_54fdab93e42439 1-19
+connectors/slack/src/lib/utils.ts
+  s_55e7ca245f68da::t_da3883c072c19e 1
+connectors/framework/src/capabilities.ts
+  s_55e7ca245f68da::t_e0ad98e45a2426 90-91
+  s_55e7ca245f68da::t_2bf4c1a7773d5d 108-137
+apps/api/src/live-state/hooks.ts
+  s_55e7ca245f68da::t_7f5684b6c6ef45 84
+  s_55e7ca245f68da::t_01eabd4363d7a7 27-32
+connectors/discord/src/lib/utils.ts
+  s_55e7ca245f68da::t_3dfc3975747396 1
+apps/api/src/live-state/router/ingest.ts
+  s_55e7ca245f68da::t_e0ad98e45a2426 41
+  s_55e7ca245f68da::t_714c167d236d1a 303,305-309,311-314,316-317,320-325,329,355-358
+  s_55e7ca245f68da::t_eef4ec2f84cdf0 293-294
+  s_55e7ca245f68da::t_ada7b5211727f2 2-12,14,20,43-45,49-94,207-251,253-282,288-292,295-302,304,310,315,318-319,326-328,330-354,359-380
+  s_55e7ca245f68da::t_b2e62e6893ad9d 283-287
+  s_55e7ca245f68da::t_909f869db3d31e 252
+packages/schemas/src/integration/shared.ts
+  s_55e7ca245f68da::t_4d4c28cb01661b 24-26
+  s_55e7ca245f68da::t_8f51505caaf926 3-23,27-58
+apps/web/src/components/integration-settings/thread-import.tsx
+  s_55e7ca245f68da::t_c8939728ddf25c 25-26,30,35,37-38,42,44-45
+  s_55e7ca245f68da::t_c92634bd20ca6f 90-94,109-111
+  s_55e7ca245f68da::t_acb9707633f59e 1-2,5-6,8,10-24,31-34,36,39-41,43,46-47,49-60,65-81,83-89,95,101-104,107-108,112-115,117-125,127-135
+  s_55e7ca245f68da::t_3c575f1dfc85ef 61-64
+  s_55e7ca245f68da::t_4d4c28cb01661b 27-29
+connectors/framework/src/runtime/index.ts
+  s_55e7ca245f68da::t_6a9c8c8d920d52 24-30
+connectors/framework/src/index.ts
+  s_55e7ca245f68da::t_9fab290449f3b0 33-34,39-40
+  ai_agent 103-107
+apps/web/src/routes/app/_workspace/settings/organization/integration/slack/index.tsx
+  s_55e7ca245f68da::t_2c09fc8dbb8e29 20,257-260
+  s_55e7ca245f68da::t_c65ab4a15e0db7 204-209
+connectors/framework/src/runtime/thread-import.ts
+  s_55e7ca245f68da::t_4d4c28cb01661b 172
+  s_55e7ca245f68da::t_b2e62e6893ad9d 38-40,180-181,185
+  s_55e7ca245f68da::t_c65d4163514c27 60,86
+  s_55e7ca245f68da::t_3207385b7d8b05 56-58,62,64-65,77-78,81-84,87-106,110,112-115,117-120,123,126-131,150-155,157-158,161-165
+  s_55e7ca245f68da::t_220a5712bb0e57 59,85
+  s_55e7ca245f68da::t_1de6090557c1a2 33-35
+  s_55e7ca245f68da::t_f39fa93c021275 1-14,17-32,36-37,43-46,49-53,55,61,63,66-76,111,116,121,125,132-149,159,167-171,173,176-179,182-184,186-191,194,197,200-214,217-243,245-247
+  s_55e7ca245f68da::t_eef4ec2f84cdf0 107-109
+apps/api/src/live-state/router/integration.ts
+  s_55e7ca245f68da::t_f59f60cfca29c9 29-33,78-80,430-431
+  s_55e7ca245f68da::t_2b4e92ee519c32 687-716,719-720,722-731
+  s_55e7ca245f68da::t_5c8907c02adc8a 717-718,721
+bun.lock
+  ai_agent 242
+apps/api/src/lib/queue.ts
+  s_55e7ca245f68da::t_b2e62e6893ad9d 94
+  s_55e7ca245f68da::t_01453fe7651bca 4-7,368-428
+connectors/slack/src/index.ts
+  s_55e7ca245f68da::t_c8939728ddf25c 453-460,503,506-508,522
+  s_55e7ca245f68da::t_b2e62e6893ad9d 424-427,536
+  s_55e7ca245f68da::t_da3883c072c19e 2-6,10-12,36,404-412,415-417,419,421-423,428-432,434-435,437-443,445-447,450-452,461-465,468-471,473-480,482-493,496-502,504-505,510-521,523-525,527-528,530-535,537-542,544,976,978,995-998,1000,1023
+docs/adr/0009-emitting-side-connector-retrofit.md
+  s_55e7ca245f68da::t_2fd9711d82be75 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8ff68cbcba42df851aadbf442a839eec7a6f19b4",
+  "prompts": {},
+  "sessions": {
+    "s_55e7ca245f68da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2b26c22-4b10-45a7-a274-2a712bbb6b4d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
