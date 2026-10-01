@@ -400,11 +400,14 @@ export type ThreadImportEnqueueOutcome =
 /**
  * Enqueue an "Import threads" run. One job per integration: while one is
  * waiting or active a repeat is `running`. Finished jobs are removed, so the
- * next click starts a fresh run.
+ * next click starts a fresh run. `beforeAdd` runs only when a job is about to
+ * be added, so the caller can create the run's row without leaving one behind
+ * for a coalesced click.
  */
 export const enqueueThreadImport = async (
   provider: string,
-  data: ThreadImportJobData
+  data: ThreadImportJobData,
+  beforeAdd: () => Promise<void>
 ): Promise<ThreadImportEnqueueOutcome> => {
   const queue = getThreadImportQueue(provider);
   if (!queue) {
@@ -419,11 +422,14 @@ export const enqueueThreadImport = async (
     }
     await existing.remove();
   }
-  await queue.add("import-threads", data, {
+  await beforeAdd();
+  const job = await queue.add("import-threads", data, {
     attempts: 1,
     jobId,
     removeOnComplete: true,
     removeOnFail: true,
   });
-  return "enqueued";
+  // BullMQ keeps the existing job on a duplicate id, so a concurrent click
+  // that also passed the check above lands here with someone else's job.
+  return job.data.runId === data.runId ? "enqueued" : "running";
 };

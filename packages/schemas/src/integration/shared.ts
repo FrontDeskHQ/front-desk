@@ -3,10 +3,9 @@ import { z } from "zod";
 import type { OrganizationSettings } from "../organization";
 
 /**
- * Progress of a support integration's "Import threads" run, stored on
- * `integration.threadImport`. `null` means no import has run yet.
+ * Progress of one "Import threads" run, stored on `threadImportRun.status`.
  *
- * `done` is the only terminal state. Its counts describe the latest run; the
+ * `done` is the only terminal state. Its counts describe the run; the
  * UI derives "Partial result", "No eligible threads found" and "Allowance
  * exhausted" from them. It deliberately has no "synced" meaning: a finished
  * import says nothing about whether FrontDesk has read the threads yet.

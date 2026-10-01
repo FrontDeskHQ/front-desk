@@ -539,6 +539,7 @@ const createSlackImportSource = (
 
 const resolveSlackImportSource = async ({
   integrationId,
+  channelIds,
 }: ThreadImportJobData): Promise<ThreadImportSource | null> => {
   const integration = await fetchClient.query.integration.byId({
     id: integrationId,
@@ -551,7 +552,13 @@ const resolveSlackImportSource = async ({
   if (!client) {
     throw new Error(`Could not get Slack client for team ${settings.teamId}`);
   }
-  return createSlackImportSource(client, settings.selectedChannels ?? []);
+  // Re-checked against the current selection: a channel deselected after the
+  // run was queued is no longer a support channel.
+  const requested = new Set(channelIds);
+  return createSlackImportSource(
+    client,
+    (settings.selectedChannels ?? []).filter((c) => requested.has(c.id))
+  );
 };
 
 app.message(

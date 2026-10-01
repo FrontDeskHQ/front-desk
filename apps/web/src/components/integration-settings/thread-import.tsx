@@ -1,16 +1,12 @@
-import { useMutation } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import type { ThreadImportStatus } from "@workspace/schemas/integration/shared";
-import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
-import { getErrorMessage } from "api/errors";
-import { toast } from "sonner";
-
-import { fetchClient } from "~/lib/live-state";
+import { ArrowRight } from "lucide-react";
 
 const pluralThreads = (count: number) =>
   `${count} ${count === 1 ? "thread" : "threads"}`;
 
-const describe = (
+export const describeThreadImport = (
   status: ThreadImportStatus | null
 ): { label: string; detail?: string; running: boolean } => {
   if (!status) {
@@ -65,77 +61,23 @@ const describe = (
   }
 };
 
-/**
- * "Import threads" for a support integration: brings in the newest threads
- * from the selected support channels, up to the plan's import allowance.
- * Selecting channels alone never imports history.
- */
-export function ThreadImport({
-  canImport,
-  integrationId,
-  status,
-}: {
-  /** False until at least one support channel is selected. */
-  canImport: boolean;
-  integrationId: string;
-  status: ThreadImportStatus | null;
-}) {
-  const { label, detail, running } = describe(status);
-  const importMutation = useMutation({
-    mutationFn: () =>
-      fetchClient.mutate.integration.importThreads({ integrationId }),
-    onError: (error) => {
-      toast.error(getErrorMessage(error, "Couldn't start the import."));
-    },
-    onSuccess: ({ outcome }) => {
-      if (outcome === "running") {
-        toast.info("An import is already running.");
-      }
-    },
-  });
-
+/** Points a support integration's settings at the Import threads page. */
+export function ThreadImportLink() {
   return (
     <Card className="bg-muted/30">
-      <CardContent>
-        <div className="flex gap-8 items-center justify-between">
-          <div className="flex flex-col">
-            <div>Import threads</div>
-            <div className="text-muted-foreground">
-              Bring in recent threads from your support channels
-            </div>
+      <CardContent className="flex gap-8 items-center justify-between">
+        <div className="flex flex-col">
+          <div>Import threads</div>
+          <div className="text-muted-foreground">
+            Bring in past threads from your support channels
           </div>
-          <Button
-            variant="outline"
-            // Not gated on `running`: a stale status must never lock the
-            // action. The server coalesces a click onto a live import.
-            disabled={!canImport || importMutation.isPending}
-            onClick={() => importMutation.mutate()}
-          >
-            Import threads
-          </Button>
         </div>
-        <output
-          aria-live="polite"
-          className="mt-3 flex flex-col gap-1 text-sm"
+        <Link
+          className="flex items-center gap-1 text-sm hover:underline"
+          to="/app/settings/organization/import"
         >
-          <div className="flex items-center gap-2">
-            {running ? (
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-yellow-500" />
-              </span>
-            ) : null}
-            <span>{label}</span>
-          </div>
-          {detail ? (
-            <div className="text-muted-foreground text-xs">{detail}</div>
-          ) : null}
-          {canImport ? null : (
-            <div className="text-muted-foreground text-xs">
-              Select a support channel to import its threads.
-            </div>
-          )}
-        </output>
+          Go to Import threads <ArrowRight className="size-3.5" />
+        </Link>
       </CardContent>
     </Card>
   );

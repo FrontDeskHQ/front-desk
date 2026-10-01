@@ -6,6 +6,12 @@
  */
 export interface ThreadImportJobData {
   integrationId: string;
+  /** The `threadImportRun` row this job reports progress to. */
+  runId: string;
+  /** Channels to import from, as stored in the integration's
+   * `selectedChannels` (Slack channel id, Discord channel name). Always a
+   * subset of them: the API rejects anything else. */
+  channelIds: string[];
 }
 
 export const threadImportQueueName = (provider: string): string =>

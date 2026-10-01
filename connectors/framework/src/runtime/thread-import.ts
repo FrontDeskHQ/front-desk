@@ -44,11 +44,12 @@ interface ThreadImportContext {
   fetchClient: LiveStateFetchClient;
   integrationId: string;
   provider: string;
+  runId: string;
 }
 
 const report = (context: ThreadImportContext, status: ThreadImportStatus) =>
   context.fetchClient.mutate.ingest.reportThreadImport({
-    integrationId: context.integrationId,
+    runId: context.runId,
     status,
   });
 
@@ -258,6 +259,7 @@ export const startThreadImportWorker = (options: {
           fetchClient: options.fetchClient,
           integrationId: job.data.integrationId,
           provider: options.provider,
+          runId: job.data.runId,
         },
         () => options.resolveSource(job.data)
       );

@@ -57,7 +57,7 @@ const unknownExternalThreadsInputSchema = z.object({
 });
 
 const reportThreadImportInputSchema = z.object({
-  integrationId: z.string().min(1),
+  runId: z.string().min(1),
   status: threadImportStatusSchema,
 });
 
@@ -245,9 +245,12 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
   reportThreadImport: mutation(reportThreadImportInputSchema).handler(
     async ({ req, db }) => {
       requireInternalApiKey(req.context);
-      await requireIntegration(db, req.input.integrationId);
-      await db.update(schema.integration, req.input.integrationId, {
-        threadImport: req.input.status,
+      const run = await db.threadImportRun.one(req.input.runId).get();
+      if (!run) {
+        throw errors.notFound("threadImportRun");
+      }
+      await db.threadImportRun.update(run.id, {
+        status: req.input.status,
         updatedAt: new Date(),
       });
       return { ok: true };

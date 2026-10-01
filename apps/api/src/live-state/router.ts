@@ -929,6 +929,7 @@ export const router = createRouter({
               },
               invites: true,
               integrations: true,
+              threadImportRuns: true,
               // `subscriptions` is intentionally NOT synced here: it carries
               // billing identifiers and is owner-only (see subscription.forOrg).
               // Feature-gating state lives in organization.settings (plan,

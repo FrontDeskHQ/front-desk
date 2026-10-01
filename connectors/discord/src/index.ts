@@ -207,6 +207,7 @@ const createDiscordImportSource = (
 
 const resolveDiscordImportSource = async ({
   integrationId,
+  channelIds,
 }: ThreadImportJobData): Promise<ThreadImportSource | null> => {
   const integration = await fetchClient.query.integration.byId({
     id: integrationId,
@@ -216,7 +217,12 @@ const resolveDiscordImportSource = async ({
     return null;
   }
   const guild = await client.guilds.fetch(settings.guildId);
-  const selected = new Set(settings.selectedChannels ?? []);
+  // Re-checked against the current selection: a channel deselected after the
+  // run was queued is no longer a support channel.
+  const requested = new Set(channelIds);
+  const selected = new Set(
+    (settings.selectedChannels ?? []).filter((name) => requested.has(name))
+  );
   const channels = [...(await guild.channels.fetch()).values()].filter(
     (channel): channel is ImportableChannel =>
       (channel?.type === ChannelType.GuildText ||

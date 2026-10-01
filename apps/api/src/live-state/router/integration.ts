@@ -9,6 +9,7 @@ import {
 } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
+import { selectedSupportChannels } from "@workspace/schemas/integration/support-channels";
 import type { IssueIndexJobData } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -65,6 +66,11 @@ const reenableInputSchema = z.object({
 });
 
 const integrationIdInputSchema = z.object({
+  integrationId: z.string().min(1),
+});
+
+const importThreadsInputSchema = z.object({
+  channelIds: z.array(z.string().min(1)).min(1),
   integrationId: z.string().min(1),
 });
 
@@ -689,7 +695,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
    * integration's selected support channels, up to the organization's
    * allowance. Owner-triggered only; selecting channels never imports.
    */
-  importThreads: mutation(integrationIdInputSchema).handler(
+  importThreads: mutation(importThreadsInputSchema).handler(
     async ({ req, db }) => {
       const integration = await db.integration
         .one(req.input.integrationId)
@@ -714,21 +720,84 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         );
       }
 
-      // The connector owns `threadImport` from its first report, so this
-      // handler never writes it and can't overwrite a live run's progress.
+      const supportChannels =
+        selectedSupportChannels(integration.type, integration.configStr) ?? [];
+      const requested = new Set(req.input.channelIds);
+      const channels = supportChannels.filter((c) => requested.has(c.id));
+      if (channels.length !== requested.size) {
+        throw errors.badRequest(
+          "THREAD_IMPORT_CHANNEL_NOT_SELECTED",
+          "Only selected support channels can be imported from."
+        );
+      }
+
+      const now = new Date();
+      const runId = ulid().toLowerCase();
+      const startedAt = now.toISOString();
+      let runCreated = false;
       const unavailable = (cause?: unknown) =>
         errors.serviceUnavailable(
           "THREAD_IMPORT_UNAVAILABLE",
           "Importing threads is unavailable right now. Try again in a moment.",
           cause === undefined ? undefined : { cause }
         );
-      const outcome = await enqueueThreadImport(integration.type, {
-        integrationId: integration.id,
-      }).catch((cause: unknown) => {
+      // A run whose job never made it onto the queue ends as a failed run
+      // rather than sitting in "finding" forever.
+      const failRun = async () => {
+        if (!runCreated) {
+          return;
+        }
+        await db.threadImportRun
+          .update(runId, {
+            status: {
+              exhausted: false,
+              failed: 1,
+              finishedAt: new Date().toISOString(),
+              imported: 0,
+              startedAt,
+              state: "done",
+            },
+            updatedAt: new Date(),
+          })
+          .catch((error: unknown) => {
+            console.error(
+              `[thread-import] Failed to fail run ${runId}:`,
+              error
+            );
+          });
+      };
+      const outcome = await enqueueThreadImport(
+        integration.type,
+        {
+          channelIds: channels.map((c) => c.id),
+          integrationId: integration.id,
+          runId,
+        },
+        // The row exists before the job so the connector's first report has
+        // somewhere to land. From then on the connector owns `status`.
+        async () => {
+          await db.threadImportRun.insert({
+            channels,
+            createdAt: now,
+            id: runId,
+            integrationId: integration.id,
+            organizationId: integration.organizationId,
+            status: { startedAt, state: "finding" },
+            updatedAt: now,
+          });
+          runCreated = true;
+        }
+      ).catch(async (cause: unknown) => {
+        await failRun();
         throw unavailable(cause);
       });
       if (outcome === "queue_unavailable") {
         throw unavailable();
+      }
+      if (outcome === "running") {
+        // Lost a race with a concurrent click after the row was created; no
+        // job will ever report to it.
+        await failRun();
       }
       return { outcome };
     }

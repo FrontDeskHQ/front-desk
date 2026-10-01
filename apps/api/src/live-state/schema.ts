@@ -142,7 +142,22 @@ const integration = object("integration", {
   updatedAt: timestamp(),
   // TODO make this a JSON object when live-state supports it
   configStr: string().nullable(),
-  threadImport: json<ThreadImportStatus>().nullable(),
+});
+
+/**
+ * One "Import threads" run. The API creates it when the run is queued; the
+ * connector running the import owns `status` from then on.
+ */
+const threadImportRun = object("threadImportRun", {
+  /** Snapshot of the channels chosen for this run, for display. `id` is the
+   * integration's channel key (Slack channel id, Discord channel name). */
+  channels: json<{ id: string; name: string }[]>(),
+  createdAt: timestamp(),
+  id: id(),
+  integrationId: reference("integration.id").index(),
+  organizationId: reference("organization.id").index(),
+  status: json<ThreadImportStatus>(),
+  updatedAt: timestamp(),
 });
 
 // Encrypted connector authorization. Server-only: no route or organization
@@ -316,6 +331,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   onboardings: many(onboarding, "organizationId"),
   organizationUsers: many(organizationUser, "organizationId"),
   subscriptions: many(subscription, "organizationId"),
+  threadImportRuns: many(threadImportRun, "organizationId"),
   threads: many(thread, "organizationId"),
 }));
 
@@ -357,6 +373,14 @@ const inviteRelations = createRelations(invite, ({ one }) => ({
 const integrationRelations = createRelations(integration, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
+
+const threadImportRunRelations = createRelations(
+  threadImportRun,
+  ({ one }) => ({
+    integration: one(integration, "integrationId"),
+    organization: one(organization, "organizationId"),
+  })
+);
 
 const updateRelations = createRelations(update, ({ one }) => ({
   thread: one(thread, "threadId"),
@@ -568,6 +592,7 @@ export const schema = createSchema({
   integration,
   integrationCredential,
   integrationOAuthState,
+  threadImportRun,
   update,
   allowlist,
   earlyAccessRequest,
@@ -594,6 +619,7 @@ export const schema = createSchema({
   authorRelations,
   inviteRelations,
   integrationRelations,
+  threadImportRunRelations,
   subscriptionRelations,
   updateRelations,
   labelRelations,
