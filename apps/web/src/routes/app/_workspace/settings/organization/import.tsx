@@ -15,10 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { TreeItem, TreeItemRow, TreeList } from "@workspace/ui/components/tree";
 import { getErrorMessage } from "api/errors";
 import { formatDistanceToNow } from "date-fns";
 import { useAtomValue } from "jotai/react";
-import { Hash, Plus } from "lucide-react";
+import { Hash, Info, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -106,7 +107,6 @@ function RouteComponent() {
         <Button
           disabled={!isOwner || sources.length === 0}
           onClick={() => setDialogOpen(true)}
-          variant="outline"
         >
           <Plus /> New import
         </Button>
@@ -142,9 +142,7 @@ function RouteComponent() {
               );
               return (
                 <div className="flex items-center gap-3 py-2.5" key={run.id}>
-                  <span className="size-4 shrink-0 [&_svg]:size-4">
-                    {type ? requireIntegrationOption(type).icon : null}
-                  </span>
+                  {type ? <SourceIcon type={type} /> : null}
                   <span className="flex-1 truncate">
                     {run.channels.map((c) => `#${c.name}`).join(", ")}
                   </span>
@@ -182,6 +180,35 @@ function RouteComponent() {
   );
 }
 
+/** The integration's logo without its brand-coloured tile, in text colour. */
+function SourceIcon({ type }: { type: string }) {
+  return (
+    <span className="flex size-3.5 shrink-0 items-center justify-center [&>div]:size-auto [&>div]:rounded-none [&>div]:bg-transparent [&_path]:fill-foreground [&_svg]:size-3.5 [&_svg]:fill-foreground">
+      {requireIntegrationOption(type).icon}
+    </span>
+  );
+}
+
+/** What every import does, shown under the channel picker. */
+function ImportNotice({ allowance }: { allowance: number | null }) {
+  return (
+    <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
+      <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+      <ul className="flex flex-col gap-1 text-muted-foreground">
+        <li>Newest threads come in first.</li>
+        <li>Threads already in FrontDesk are skipped.</li>
+        {allowance === null ? null : (
+          <li>
+            Your plan imports up to{" "}
+            <span className="text-foreground">{allowance} threads</span> in
+            total.
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 function RunningDot() {
   return (
     <span className="relative flex size-2">
@@ -191,7 +218,8 @@ function RunningDot() {
   );
 }
 
-const STEPS = ["Source", "Channels", "Review"] as const;
+/** Picked channels, keyed by integration. */
+type Selection = Map<string, Set<string>>;
 
 function NewImportDialog({
   allowance,
@@ -204,52 +232,70 @@ function NewImportDialog({
   open: boolean;
   sources: ImportSource[];
 }) {
-  const [step, setStep] = useState(0);
-  const [sourceId, setSourceId] = useState<string | null>(null);
-  const [channelIds, setChannelIds] = useState<Set<string>>(new Set());
-  const source = sources.find((s) => s.integrationId === sourceId) ?? null;
+  const [selection, setSelection] = useState<Selection>(new Map());
 
-  const reset = () => {
-    setStep(0);
-    setSourceId(null);
-    setChannelIds(new Set());
-  };
   const close = () => {
     onOpenChange(false);
-    reset();
+    setSelection(new Map());
   };
 
+  // What is ticked among the current support channels, not the raw selection: a channel deselected
+  // elsewhere meanwhile drops out here, and so out of the request.
+  const chosen = sources
+    .map((source) => ({
+      channels: source.channels.filter((c) =>
+        selection.get(source.integrationId)?.has(c.id)
+      ),
+      source,
+    }))
+    .filter(({ channels }) => channels.length > 0);
+
   const importMutation = useMutation({
-    mutationFn: (input: { integrationId: string; channelIds: string[] }) =>
-      fetchClient.mutate.integration.importThreads(input),
-    onError: (error) => {
-      toast.error(getErrorMessage(error, "Couldn't start the import."));
-    },
-    onSuccess: ({ outcome }) => {
-      if (outcome === "running") {
+    // One run per source: a run imports from a single integration.
+    mutationFn: () =>
+      Promise.allSettled(
+        chosen.map(({ source, channels }) =>
+          fetchClient.mutate.integration.importThreads({
+            channelIds: channels.map((c) => c.id),
+            integrationId: source.integrationId,
+          })
+        )
+      ),
+    onSuccess: (results) => {
+      const failure = results.find((r) => r.status === "rejected");
+      if (failure) {
+        toast.error(
+          getErrorMessage(failure.reason, "Couldn't start the import.")
+        );
+      }
+      if (
+        results.some(
+          (r) => r.status === "fulfilled" && r.value.outcome === "running"
+        )
+      ) {
         toast.info(
           "An import from this source is already running. Try again when it finishes."
         );
-        return;
       }
-      close();
+      if (!failure) {
+        close();
+      }
     },
   });
 
-  const toggleChannel = (id: string) =>
-    setChannelIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+  const setChannels = (
+    integrationId: string,
+    update: (ids: Set<string>) => void
+  ) =>
+    setSelection((current) => {
+      const next = new Map(current);
+      const ids = new Set(current.get(integrationId));
+      update(ids);
+      next.set(integrationId, ids);
       return next;
     });
 
-  const canContinue =
-    (step === 0 && source !== null) || (step === 1 && channelIds.size > 0);
-  const chosen = source?.channels.filter((c) => channelIds.has(c.id)) ?? [];
+  const channelCount = chosen.reduce((n, c) => n + c.channels.length, 0);
 
   return (
     <Dialog
@@ -259,126 +305,117 @@ function NewImportDialog({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>New import</DialogTitle>
-          <DialogDescription className="flex gap-4">
-            {STEPS.map((name, i) => (
-              <span
-                className={i === step ? "text-foreground" : undefined}
-                key={name}
-              >
-                {i + 1}. {name}
-              </span>
-            ))}
+          <DialogDescription>
+            Choose the support channels to bring past threads in from.
           </DialogDescription>
         </DialogHeader>
 
-        {step === 0 && (
-          <div className="grid grid-cols-2 gap-3">
-            {sources.map((s) => {
-              const option = requireIntegrationOption(s.type);
+        {
+          // One root per source: siblings at the root would draw a guide
+          // line through the earlier sources' channels.
+          <div className="flex flex-col gap-2">
+            {sources.map((source) => {
+              const option = requireIntegrationOption(source.type);
+              const picked = selection.get(source.integrationId);
+              const pickedCount = source.channels.filter((c) =>
+                picked?.has(c.id)
+              ).length;
+              const all =
+                source.channels.length > 0 &&
+                pickedCount === source.channels.length;
               return (
-                <button
-                  className={`border rounded-lg p-4 text-left flex flex-col gap-1 ${sourceId === s.integrationId ? "border-primary" : ""}`}
-                  key={s.integrationId}
-                  onClick={() => {
-                    if (s.integrationId !== sourceId) {
-                      setChannelIds(new Set());
-                    }
-                    setSourceId(s.integrationId);
-                  }}
-                  type="button"
-                >
-                  <span className="flex items-center gap-2 [&_svg]:size-5">
-                    {option.icon}
-                    {option.label}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {s.channels.length}{" "}
-                    {s.channels.length === 1
-                      ? "support channel"
-                      : "support channels"}
-                  </span>
-                </button>
+                <TreeList key={source.integrationId}>
+                  <TreeItem>
+                    <TreeItemRow>
+                      <label className="flex flex-1 items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={
+                            all
+                              ? true
+                              : pickedCount > 0
+                                ? "indeterminate"
+                                : false
+                          }
+                          disabled={source.channels.length === 0}
+                          onCheckedChange={() =>
+                            setChannels(source.integrationId, (ids) => {
+                              ids.clear();
+                              if (!all) {
+                                for (const c of source.channels) {
+                                  ids.add(c.id);
+                                }
+                              }
+                            })
+                          }
+                        />
+                        <SourceIcon type={source.type} />
+                        <span>{option.label}</span>
+                      </label>
+                    </TreeItemRow>
+                    {source.channels.length === 0 ? (
+                      <TreeList>
+                        <TreeItem>
+                          <TreeItemRow>
+                            <span className="text-muted-foreground">
+                              No support channels selected.{" "}
+                              <Link
+                                className="underline"
+                                to="/app/settings/organization/integration"
+                              >
+                                Choose some
+                              </Link>{" "}
+                              first.
+                            </span>
+                          </TreeItemRow>
+                        </TreeItem>
+                      </TreeList>
+                    ) : (
+                      <TreeList>
+                        {source.channels.map((c) => (
+                          <TreeItem key={c.id}>
+                            <TreeItemRow>
+                              <label className="flex flex-1 items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={picked?.has(c.id) ?? false}
+                                  onCheckedChange={() =>
+                                    setChannels(source.integrationId, (ids) => {
+                                      if (ids.has(c.id)) {
+                                        ids.delete(c.id);
+                                      } else {
+                                        ids.add(c.id);
+                                      }
+                                    })
+                                  }
+                                />
+                                <Hash className="size-3.5 shrink-0 text-muted-foreground" />
+                                <span>{c.name}</span>
+                              </label>
+                            </TreeItemRow>
+                          </TreeItem>
+                        ))}
+                      </TreeList>
+                    )}
+                  </TreeItem>
+                </TreeList>
               );
             })}
           </div>
-        )}
+        }
 
-        {step === 1 && source && (
-          <div className="flex flex-col">
-            {source.channels.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                No support channels selected.{" "}
-                <Link
-                  className="underline"
-                  to="/app/settings/organization/integration"
-                >
-                  Choose some
-                </Link>{" "}
-                first.
-              </div>
-            ) : (
-              source.channels.map((c) => (
-                <label
-                  className="flex items-center gap-3 py-2 px-1 cursor-pointer hover:bg-muted/40 rounded-md"
-                  key={c.id}
-                >
-                  <Checkbox
-                    checked={channelIds.has(c.id)}
-                    onCheckedChange={() => toggleChannel(c.id)}
-                  />
-                  <Hash className="size-3.5 text-muted-foreground" />
-                  <span>{c.name}</span>
-                </label>
-              ))
-            )}
-          </div>
-        )}
-
-        {step === 2 && source && (
-          <div className="text-sm flex flex-col gap-1">
-            <div>
-              Import from {chosen.map((c) => `#${c.name}`).join(", ")}, newest
-              threads first.
-            </div>
-            <div className="text-muted-foreground">
-              Threads already in FrontDesk are skipped.
-              {allowance === null
-                ? ""
-                : ` Your plan imports up to ${allowance} threads in total.`}
-            </div>
-          </div>
-        )}
+        <ImportNotice allowance={allowance} />
 
         <DialogFooter>
-          <Button
-            disabled={step === 0}
-            onClick={() => setStep(step - 1)}
-            variant="ghost"
-          >
-            Back
+          <Button onClick={close} variant="ghost">
+            Cancel
           </Button>
-          {step < 2 ? (
-            <Button disabled={!canContinue} onClick={() => setStep(step + 1)}>
-              Continue
-            </Button>
-          ) : (
-            <Button
-              disabled={
-                !source || chosen.length === 0 || importMutation.isPending
-              }
-              onClick={() =>
-                source &&
-                importMutation.mutate({
-                  // What the review step shows, not the raw selection: a
-                  // channel deselected meanwhile has dropped out of `chosen`.
-                  channelIds: chosen.map((c) => c.id),
-                  integrationId: source.integrationId,
-                })
-              }
-            >
-              Start import
-            </Button>
-          )}
+          <Button
+            disabled={chosen.length === 0 || importMutation.isPending}
+            onClick={() => importMutation.mutate()}
+          >
+            {channelCount === 0
+              ? "Start import"
+              : `Import from ${channelCount} ${channelCount === 1 ? "channel" : "channels"}`}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
