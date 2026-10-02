@@ -239,6 +239,7 @@
       "dependencies": {
         "@live-state/sync": "catalog:",
         "@reflag/node-sdk": "^1.1.0",
+        "@workspace/schemas": "workspace:*",
         "bullmq": "^5.67.1",
         "ioredis": "^5.3.2",
         "zod": "catalog:",

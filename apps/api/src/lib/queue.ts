@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  threadImportJobId,
+  threadImportQueueName,
+} from "@connectors/framework";
+import type { ThreadImportJobData } from "@connectors/framework";
+import {
   configureThreadReadQueue,
   createQueueRedisConnection,
   enqueueThreadRead as enqueueDurableThreadRead,
@@ -86,9 +91,7 @@ export const enqueueThreadRead = async (
     threadId,
     {
       kind: opts.kind,
-      ...(opts.entityFinished
-        ? { entityFinished: opts.entityFinished }
-        : {}),
+      ...(opts.entityFinished ? { entityFinished: opts.entityFinished } : {}),
       ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
     },
     { delayMs: opts.delayMs, priority: opts.priority }
@@ -361,4 +364,72 @@ export const enqueueGithubBackfill = async (
   });
 
   return job.id ?? null;
+};
+
+// Thread import queues
+//
+// Each support connector (slack, discord) owns its import worker; the API only
+// enqueues. Queue names and job ids come from `@connectors/framework` so both
+// sides agree.
+const threadImportQueues = new Map<string, Queue<ThreadImportJobData>>();
+
+const getThreadImportQueue = (
+  provider: string
+): Queue<ThreadImportJobData> | null => {
+  const existing = threadImportQueues.get(provider);
+  if (existing) {
+    return existing;
+  }
+  connection ??= createApiRedisConnection();
+  if (!connection) {
+    return null;
+  }
+  const queue = new Queue<ThreadImportJobData>(
+    threadImportQueueName(provider),
+    { connection }
+  );
+  threadImportQueues.set(provider, queue);
+  return queue;
+};
+
+export type ThreadImportEnqueueOutcome =
+  | "enqueued"
+  | "running"
+  | "queue_unavailable";
+
+/**
+ * Enqueue an "Import threads" run. One job per integration: while one is
+ * waiting or active a repeat is `running`. Finished jobs are removed, so the
+ * next click starts a fresh run. `beforeAdd` runs only when a job is about to
+ * be added, so the caller can create the run's row without leaving one behind
+ * for a coalesced click.
+ */
+export const enqueueThreadImport = async (
+  provider: string,
+  data: ThreadImportJobData,
+  beforeAdd: () => Promise<void>
+): Promise<ThreadImportEnqueueOutcome> => {
+  const queue = getThreadImportQueue(provider);
+  if (!queue) {
+    return "queue_unavailable";
+  }
+  const jobId = threadImportJobId(data.integrationId);
+  const existing = await queue.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "completed" && state !== "failed") {
+      return "running";
+    }
+    await existing.remove();
+  }
+  await beforeAdd();
+  const job = await queue.add("import-threads", data, {
+    attempts: 1,
+    jobId,
+    removeOnComplete: true,
+    removeOnFail: true,
+  });
+  // BullMQ keeps the existing job on a duplicate id, so a concurrent click
+  // that also passed the check above lands here with someone else's job.
+  return job.data.runId === data.runId ? "enqueued" : "running";
 };

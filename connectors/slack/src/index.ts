@@ -1,8 +1,15 @@
 import "./env";
-import { startOutboundReplication } from "@connectors/framework/runtime";
+import type { ThreadImportJobData } from "@connectors/framework";
+import {
+  startOutboundReplication,
+  startThreadImportWorker,
+} from "@connectors/framework/runtime";
 import type {
   OutboundMessage,
   OutboundUpdate,
+  ThreadImportCandidate,
+  ThreadImportPayload,
+  ThreadImportSource,
 } from "@connectors/framework/runtime";
 import type {
   AllMiddlewareArgs,
@@ -21,26 +28,12 @@ import { parse } from "@workspace/utils/md-tiptap";
 
 import { slackAuthorName } from "./lib/author-name";
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
-import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
 import { formatSlackOutboundText } from "./lib/markdown-to-mrkdwn";
 import { resolveSlackTargetPrerequisites } from "./lib/outbound-target";
 import type { SlackTargetPrerequisiteFailureReason } from "./lib/outbound-target";
-import type { BackfillChannelResult } from "./lib/queue";
-import {
-  addChannelBackfillJob,
-  addThreadBackfillJob,
-  closeBackfillQueue,
-  initializeBackfillWorker,
-} from "./lib/queue";
-import {
-  getBackfillLimit,
-  safeParseIntegrationSettings,
-  updateBackfillStatus,
-  updateSyncedChannels,
-  withBackfillLock,
-} from "./lib/utils";
+import { safeParseIntegrationSettings } from "./lib/utils";
 
 initSharedLogger({ service: "slack-connector" });
 
@@ -382,7 +375,6 @@ const ingestSlackMessage = (args: {
   text: string;
   author: { externalId: string; name: string };
   threadTitle?: string;
-  isBackfill?: boolean;
 }) =>
   fetchClient.mutate.ingest.ingest({
     author: {
@@ -390,7 +382,6 @@ const ingestSlackMessage = (args: {
       name: args.author.name,
     },
     externalThreadId: args.externalThreadId,
-    isBackfill: args.isBackfill ?? false,
     message: {
       body: parse(args.text || ""),
       createdAt: new Date(Number.parseFloat(args.ts) * 1000),
@@ -410,369 +401,164 @@ const ingestSlackMessage = (args: {
 const slackThreadTitle = (rootText: string | undefined, fallback: string) =>
   rootText && rootText.length > 0 ? rootText.slice(0, 100) : fallback;
 
+/** Live ingestion's rule for a message FrontDesk should see (see `app.message`). */
+const isIngestibleSlackMessage = (
+  message: MessageElement
+): message is MessageElement & { ts: string; user: string } =>
+  !message.subtype &&
+  !message.bot_id &&
+  !message.bot_profile &&
+  !!message.user &&
+  !!message.ts;
+
 /**
- * Backfill a single Slack thread and its messages through `mutate.ingest`. The
- * ingest procedure is idempotent (create-vs-append + `externalMessageId` dedup
- * owned by the core), so this one path covers both a first-time thread and a
- * re-added channel — no connector-side `byExternalId` / thread-existence checks.
- * The Slack root message (its `ts` equals `threadTs`) carries the thread
- * descriptor; the replies omit it and append.
+ * "Import threads" source for one Slack integration. Every top-level user
+ * message in a selected channel is a thread, exactly as live ingestion treats
+ * it, whether or not it has replies.
  */
-const backfillThread = async (
+const createSlackImportSource = (
   client: WebClient,
-  channelId: string,
-  threadTs: string,
-  _teamId: string,
-  organizationId: string
-): Promise<void> => {
-  // Fetch all messages in the thread using conversations.replies with pagination
-  const messages: MessageElement[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const replies = await client.conversations.replies({
-      channel: channelId,
-      cursor,
-      limit: 200,
-      ts: threadTs,
-    });
-
-    if (!replies.ok || !replies.messages) {
-      if (messages.length === 0) {
-        console.log(`    [Slack] No messages found for thread ${threadTs}`);
-        return;
-      }
-      break;
+  channels: { id: string; name: string }[]
+): ThreadImportSource => {
+  const channelByThread = new Map<string, { id: string; name: string }>();
+  const authors = new Map<
+    string,
+    Promise<{ externalId: string; name: string }>
+  >();
+  const resolveAuthor = (slackUserId: string) => {
+    let author = authors.get(slackUserId);
+    if (!author) {
+      author = resolveSlackAuthor(client, slackUserId);
+      authors.set(slackUserId, author);
     }
+    return author;
+  };
 
-    messages.push(...replies.messages);
-    cursor = replies.response_metadata?.next_cursor;
-  } while (cursor);
-
-  // conversations.replies returns the root message first; the thread cannot be
-  // created without it. If the root is a bot/system message, skip the whole
-  // thread rather than hand the core a message for an unknown thread with no
-  // descriptor (which it would reject).
-  const rootMessage = messages[0];
-  if (!rootMessage || rootMessage.bot_id || !rootMessage.user) {
-    console.log(`    [Slack] Skipping bot thread ${threadTs}`);
-    return;
+  async function* listChannelThreads(channel: { id: string; name: string }) {
+    let cursor: string | undefined;
+    do {
+      const page = await client.conversations.history({
+        channel: channel.id,
+        cursor,
+        limit: 200,
+      });
+      if (!page.ok) {
+        throw new Error(
+          `Slack conversations.history failed for ${channel.id}: ${page.error}`
+        );
+      }
+      const candidates: ThreadImportCandidate[] = [];
+      for (const message of page.messages ?? []) {
+        const isRoot = !message.thread_ts || message.thread_ts === message.ts;
+        // A bot or workflow root still becomes a thread live once a person
+        // replies, so a root with replies is a candidate either way.
+        const hasReplies = (message.reply_count ?? 0) > 0;
+        if (
+          isRoot &&
+          message.ts &&
+          (isIngestibleSlackMessage(message) || hasReplies)
+        ) {
+          channelByThread.set(message.ts, channel);
+          candidates.push({
+            externalThreadId: message.ts,
+            startedAt: Number.parseFloat(message.ts) * 1000,
+          });
+        }
+      }
+      yield candidates;
+      cursor = page.response_metadata?.next_cursor || undefined;
+    } while (cursor);
   }
 
-  const sortedMessages = messages
-    .filter(
-      (m): m is MessageElement & { ts: string; user: string } =>
-        !m.bot_id && !!m.user && !!m.ts
-    )
-    .toSorted((a, b) => Number.parseFloat(a.ts) - Number.parseFloat(b.ts));
+  // Sequential: each new author costs a Slack users.info call, so don't
+  // burst them against the rate limit.
+  const importMessages = async (
+    messages: (MessageElement & { ts: string; user: string })[]
+  ): Promise<ThreadImportPayload["messages"]> => {
+    const imported: ThreadImportPayload["messages"] = [];
+    for (const message of messages) {
+      imported.push({
+        author: await resolveAuthor(message.user),
+        body: parse(message.text || ""),
+        createdAt: new Date(Number.parseFloat(message.ts) * 1000),
+        externalMessageId: message.ts,
+      });
+    }
+    return imported;
+  };
 
-  // Ingest in chronological order: the root (ts === threadTs) creates the thread
-  // with its descriptor, the rest append. The core dedups any already-ingested
-  // message, so re-added channels only add what's missing.
-  for (const msg of sortedMessages) {
-    const author = await resolveSlackAuthor(client, msg.user);
-    const isRoot = msg.ts === threadTs;
-    await ingestSlackMessage({
-      author,
-      channelId,
+  const load = async (
+    candidate: ThreadImportCandidate
+  ): Promise<ThreadImportPayload | null> => {
+    const threadTs = candidate.externalThreadId;
+    const channel = channelByThread.get(threadTs);
+    if (!channel) {
+      return null;
+    }
+
+    const replies: MessageElement[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await client.conversations.replies({
+        channel: channel.id,
+        cursor,
+        limit: 200,
+        ts: threadTs,
+      });
+      if (!page.ok) {
+        throw new Error(
+          `Slack conversations.replies failed for ${threadTs}: ${page.error}`
+        );
+      }
+      replies.push(...(page.messages ?? []));
+      cursor = page.response_metadata?.next_cursor || undefined;
+    } while (cursor);
+
+    const messages = replies
+      .filter(isIngestibleSlackMessage)
+      .toSorted((a, b) => Number.parseFloat(a.ts) - Number.parseFloat(b.ts));
+    if (messages.length === 0) {
+      return null;
+    }
+    // Live ingestion titles a thread from its root only when a person wrote
+    // the root; otherwise the channel name.
+    const root = messages[0]?.ts === threadTs ? messages[0] : undefined;
+
+    return {
       externalThreadId: threadTs,
-      isBackfill: true,
-      organizationId,
-      text: msg.text || "",
-      threadTitle: isRoot
-        ? slackThreadTitle(msg.text, "Slack Thread")
-        : undefined,
-      ts: msg.ts,
-    });
-  }
+      messages: await importMessages(messages),
+      thread: {
+        externalMetadata: { channelId: channel.id },
+        title: ensureThreadTitle(slackThreadTitle(root?.text, channel.name)),
+      },
+    };
+  };
 
-  console.log(`    [Slack] Synced ${sortedMessages.length} messages`);
+  return { channels: channels.map(listChannelThreads), load };
 };
 
-/**
- * Backfill threads from a Slack channel (single page)
- * Returns { hasMore, nextCursor } so the worker can queue the next page
- */
-const backfillChannel = async (
-  client: WebClient,
-  channelId: string,
-  teamId: string,
-  organizationId: string,
-  integrationId: string,
-  options: { cursor?: string }
-): Promise<BackfillChannelResult> => {
-  console.log(`  [Slack] Fetching messages from channel ${channelId}...`);
-
-  try {
-    // Fetch one page of history
-    const result = await client.conversations.history({
-      channel: channelId,
-      limit: 100,
-      ...(options.cursor ? { cursor: options.cursor } : {}),
-    });
-
-    if (!result.ok || !result.messages) {
-      console.error(
-        `  [Slack] Failed to fetch history for channel ${channelId}`
-      );
-      return { hasMore: false };
-    }
-
-    // Filter threads with replies
-    const threadTimestamps = result.messages
-      .filter((msg): msg is typeof msg & { ts: string } =>
-        Boolean(msg.reply_count && msg.reply_count > 0 && msg.ts)
-      )
-      .map((msg) => msg.ts);
-
-    // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
-    let queuedCount = 0;
-    await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration.byId({
-        id: integrationId,
-      });
-      const currentSettings = safeParseIntegrationSettings(
-        integration?.configStr ?? null
-      );
-      const existingBackfill = currentSettings?.backfill;
-      const limit = existingBackfill?.limit ?? null;
-      const currentTotal = existingBackfill?.total ?? 0;
-
-      // Check budget
-      const threadsToQueue: string[] = [];
-      let remaining =
-        limit === null ? threadTimestamps.length : limit - currentTotal;
-      for (const ts of threadTimestamps) {
-        if (remaining <= 0) {
-          break;
-        }
-        threadsToQueue.push(ts);
-        remaining--;
-      }
-
-      if (threadsToQueue.length > 0) {
-        // Queue thread backfill jobs before updating total (ensures no drift on enqueue failure)
-        for (const ts of threadsToQueue) {
-          await addThreadBackfillJob(
-            channelId,
-            ts,
-            teamId,
-            organizationId,
-            integrationId
-          );
-        }
-
-        const newTotal = currentTotal + threadsToQueue.length;
-        await updateBackfillStatus(
-          integrationId,
-          integration?.configStr ?? null,
-          {
-            channelsDiscovering: existingBackfill?.channelsDiscovering ?? 0,
-            limit: existingBackfill?.limit ?? null,
-            processed: existingBackfill?.processed ?? 0,
-            total: newTotal,
-          }
-        );
-      }
-
-      queuedCount = threadsToQueue.length;
-    });
-
-    console.log(
-      `  [Slack] Queued ${queuedCount} threads for backfill from channel ${channelId}`
-    );
-
-    // Determine if there are more pages
-    const budgetExhausted = await (async () => {
-      const integration = await fetchClient.query.integration.byId({
-        id: integrationId,
-      });
-      const settings = safeParseIntegrationSettings(
-        integration?.configStr ?? null
-      );
-      const limit = settings?.backfill?.limit ?? null;
-      const total = settings?.backfill?.total ?? 0;
-      return limit !== null && total >= limit;
-    })();
-
-    const nextCursor = result.response_metadata?.next_cursor;
-    const hasMorePages = !!nextCursor;
-
-    if (!hasMorePages || budgetExhausted) {
-      // This channel is done discovering — decrement channelsDiscovering
-      await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration.byId({
-          id: integrationId,
-        });
-        const settings = safeParseIntegrationSettings(
-          integration?.configStr ?? null
-        );
-        const backfill = settings?.backfill;
-        if (backfill) {
-          const newChannelsDiscovering = Math.max(
-            0,
-            backfill.channelsDiscovering - 1
-          );
-          if (
-            newChannelsDiscovering === 0 &&
-            backfill.processed >= backfill.total
-          ) {
-            await updateBackfillStatus(
-              integrationId,
-              integration?.configStr ?? null,
-              null
-            );
-          } else {
-            await updateBackfillStatus(
-              integrationId,
-              integration?.configStr ?? null,
-              {
-                ...backfill,
-                channelsDiscovering: newChannelsDiscovering,
-              }
-            );
-          }
-        }
-      });
-
-      return { hasMore: false };
-    }
-
-    return { hasMore: true, nextCursor };
-  } catch (error) {
-    console.error(`  [Slack] Error backfilling channel ${channelId}:`, error);
-    throw error;
+const resolveSlackImportSource = async ({
+  integrationId,
+  channelIds,
+}: ThreadImportJobData): Promise<ThreadImportSource | null> => {
+  const integration = await fetchClient.query.integration.byId({
+    id: integrationId,
+  });
+  const settings = safeParseIntegrationSettings(integration?.configStr ?? null);
+  if (!integration?.enabled || !settings?.teamId) {
+    return null;
   }
-};
-
-/**
- * Handle integration changes - triggers backfill when channels are added
- * Uses persisted syncedChannels instead of in-memory Map
- */
-const handleIntegrationChanges = async (
-  integrations: {
-    id: string;
-    organizationId: string;
-    configStr: string | null;
-  }[]
-): Promise<void> => {
-  for (const integration of integrations) {
-    try {
-      const settings = safeParseIntegrationSettings(integration.configStr);
-      if (!settings?.teamId) {
-        continue;
-      }
-      const { teamId } = settings;
-
-      const selectedChannels = settings.selectedChannels ?? [];
-      const currentChannelIds = new Set(selectedChannels.map((c) => c.id));
-      let syncedChannels = new Set(settings.syncedChannels ?? []);
-
-      // Migration: if syncedChannels is undefined, initialize from current selectedChannels
-      // This prevents false trigger on first deploy with new code
-      if (settings.syncedChannels === undefined) {
-        await updateSyncedChannels(integration.id, [...currentChannelIds]);
-        continue;
-      }
-
-      // Cleanup: remove channels from syncedChannels that are no longer in selectedChannels
-      // This ensures re-adding a channel later triggers a fresh backfill
-      const cleanedSynced = [...syncedChannels].filter((id) =>
-        currentChannelIds.has(id)
-      );
-      if (cleanedSynced.length !== syncedChannels.size) {
-        syncedChannels = new Set(cleanedSynced);
-        await updateSyncedChannels(integration.id, cleanedSynced);
-      }
-
-      // Find newly added channels (in selected but not in synced)
-      const addedChannels = selectedChannels.filter(
-        (c) => !syncedChannels.has(c.id)
-      );
-
-      if (addedChannels.length === 0) {
-        continue;
-      }
-
-      // Check if backfill feature is enabled for this organization
-      const { isEnabled: isBackfillEnabled } = reflagClient
-        .bindClient({ company: { id: integration.organizationId } })
-        .getFlag("backfill-threads");
-      if (!isBackfillEnabled) {
-        console.log(
-          `[Slack] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`
-        );
-        // Still mark as synced so we don't re-check on restart
-        const newSynced = [
-          ...syncedChannels,
-          ...addedChannels.map((c) => c.id),
-        ];
-        await updateSyncedChannels(integration.id, newSynced);
-        continue;
-      }
-
-      console.log(
-        `[Slack] Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.map((c) => c.name).join(", ")}`
-      );
-
-      // Query plan limit
-      const limit = await getBackfillLimit(integration.organizationId);
-
-      // Add new channels to syncedChannels immediately (at backfill START)
-      // BullMQ handles retries for in-progress jobs
-      const newSynced = [...syncedChannels, ...addedChannels.map((c) => c.id)];
-      await updateSyncedChannels(integration.id, newSynced);
-
-      const channelsToQueue = addedChannels.map((c) => ({
-        channelId: c.id,
-        name: c.name,
-      }));
-
-      if (channelsToQueue.length === 0) {
-        continue;
-      }
-
-      // Initialize/accumulate backfill status
-      await withBackfillLock(integration.id, async () => {
-        const latestIntegration = await fetchClient.query.integration.byId({
-          id: integration.id,
-        });
-        const latestSettings = safeParseIntegrationSettings(
-          latestIntegration?.configStr ?? null
-        );
-        const existingBackfill = latestSettings?.backfill;
-
-        await updateBackfillStatus(
-          integration.id,
-          latestIntegration?.configStr ?? null,
-          {
-            channelsDiscovering:
-              (existingBackfill?.channelsDiscovering ?? 0) +
-              channelsToQueue.length,
-            limit: existingBackfill?.limit ?? limit,
-            processed: existingBackfill?.processed ?? 0,
-            total: existingBackfill?.total ?? 0,
-          }
-        );
-
-        // Queue first backfill-channel job (no cursor) for each new channel
-        for (const { channelId, name } of channelsToQueue) {
-          await addChannelBackfillJob(
-            channelId,
-            name,
-            teamId,
-            integration.organizationId,
-            integration.id
-          );
-        }
-      });
-    } catch (error) {
-      console.error(
-        `[Slack] Error processing integration ${integration.id}:`,
-        error
-      );
-    }
+  const client = await getClientForTeam(settings.teamId);
+  if (!client) {
+    throw new Error(`Could not get Slack client for team ${settings.teamId}`);
   }
+  // Re-checked against the current selection: a channel deselected after the
+  // run was queued is no longer a support channel.
+  const requested = new Set(channelIds);
+  return createSlackImportSource(
+    client,
+    (settings.selectedChannels ?? []).filter((c) => requested.has(c.id))
+  );
 };
 
 app.message(
@@ -1204,11 +990,9 @@ const deliverSlackUpdate = async (
   return result.ok && result.ts ? result.ts : null;
 };
 
-(async () => {
-  // Initialize Reflag client for feature flags
-  await reflagClient.initialize();
-  console.log("[Slack] Reflag initialized");
+let closeThreadImportWorker = async (): Promise<void> => {};
 
+(async () => {
   await app.start(process.env.PORT || 3011);
 
   createLogger({
@@ -1225,45 +1009,12 @@ const deliverSlackUpdate = async (
     `⚡️ Bolt app is running at port ${process.env.PORT || 3011}!`
   );
 
-  // Initialize the backfill worker
-  initializeBackfillWorker(getClientForTeam, {
-    onThreadBackfillComplete: async (integrationId: string) => {
-      await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration.byId({
-          id: integrationId,
-        });
-        const settings = safeParseIntegrationSettings(
-          integration?.configStr ?? null
-        );
-        const backfill = settings?.backfill;
-        if (!backfill) return;
-
-        const currentProcessed = backfill.processed + 1;
-
-        if (
-          backfill.channelsDiscovering === 0 &&
-          currentProcessed >= backfill.total
-        ) {
-          await updateBackfillStatus(
-            integrationId,
-            integration?.configStr ?? null,
-            null
-          );
-        } else {
-          await updateBackfillStatus(
-            integrationId,
-            integration?.configStr ?? null,
-            {
-              ...backfill,
-              processed: currentProcessed,
-            }
-          );
-        }
-      });
-    },
-    processChannel: backfillChannel,
-    processThread: backfillThread,
+  const threadImportWorker = startThreadImportWorker({
+    fetchClient,
+    provider: SLACK_PROVIDER,
+    resolveSource: resolveSlackImportSource,
   });
+  closeThreadImportWorker = () => threadImportWorker.close();
 
   // Initialize the digest delivery worker
   initializeDigestWorker(getClientForTeam);
@@ -1280,19 +1031,13 @@ const deliverSlackUpdate = async (
       provider: "slack",
       store,
     });
-
-    // Subscribe to Slack integrations to trigger backfill when channels are added
-    store.query.integration
-      .where({ type: "slack" })
-      .subscribe(handleIntegrationChanges);
   }, 1000);
 })();
 
 // Graceful shutdown
 const shutdown = async () => {
   console.log("[Slack] Shutting down...");
-  await reflagClient.flush();
-  await closeBackfillQueue();
+  await closeThreadImportWorker();
   await closeDigestWorker();
   try {
     await flushSharedLogger();

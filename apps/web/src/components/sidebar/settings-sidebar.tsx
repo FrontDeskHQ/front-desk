@@ -21,6 +21,7 @@ import {
   BookOpen,
   SparklesIcon,
   Cable,
+  Import,
   Code2,
   Settings,
   Tag,
@@ -76,6 +77,12 @@ const groups: {
         title: "Integrations",
         url: "/app/settings/organization/integration",
         icon: Cable,
+      },
+      {
+        title: "Import threads",
+        url: "/app/settings/organization/import",
+        icon: Import,
+        role: "owner",
       },
       {
         title: "Billing",

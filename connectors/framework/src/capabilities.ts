@@ -87,13 +87,12 @@ export type SupportEntryPointMessage = z.infer<
 /**
  * The full `ingest` payload. `externalThreadId` is always present — it is both
  * the append target and part of the idempotency key — while the richer `thread`
- * descriptor is attached only for creation. `isBackfill` suppresses downstream
- * pipeline triggers only; it does not change normalization.
+ * descriptor is attached only for creation. History goes through
+ * `importThread` instead.
  */
 export const supportEntryPointIngestSchema = z.object({
   author: supportEntryPointAuthorSchema,
   externalThreadId: z.string().min(1),
-  isBackfill: z.boolean().default(false),
   message: supportEntryPointMessageSchema,
   organizationId: z.string().min(1),
   /** Integration `type` of the emitting connector, e.g. `"discord"`. Becomes
@@ -105,6 +104,36 @@ export const supportEntryPointIngestSchema = z.object({
 export type SupportEntryPointIngestPayload = z.infer<
   typeof supportEntryPointIngestSchema
 >;
+
+/** One message of an imported thread, with its own author. */
+export const supportEntryPointImportMessageSchema =
+  supportEntryPointMessageSchema.extend({
+    author: supportEntryPointAuthorSchema,
+  });
+
+/**
+ * The `importThread` payload: one complete historical thread. The core stores
+ * the thread and every message in a single transaction, so an imported thread
+ * never appears half-filled, and only a thread it creates consumes allowance.
+ * An external thread the core already knows is left untouched.
+ */
+export const supportEntryPointImportThreadSchema = z.object({
+  externalThreadId: z.string().min(1),
+  integrationId: z.string().min(1),
+  /** Any order: the core sorts by `createdAt` and the earliest is the root. */
+  messages: z.array(supportEntryPointImportMessageSchema).min(1),
+  provider: z.string().min(1),
+  thread: supportEntryPointThreadSchema,
+});
+
+export type SupportEntryPointImportThreadPayload = z.infer<
+  typeof supportEntryPointImportThreadSchema
+>;
+
+export type SupportEntryPointImportThreadOutcome =
+  | "imported"
+  | "exists"
+  | "exhausted";
 
 /**
  * `issue-tracker` capability — invoked method contracts.

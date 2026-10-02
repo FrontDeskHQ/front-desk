@@ -30,10 +30,14 @@ export {
   type PrTrackerLinkPayload,
   prTrackerLinkPayloadSchema,
   type SupportEntryPointAuthor,
+  type SupportEntryPointImportThreadOutcome,
+  type SupportEntryPointImportThreadPayload,
   type SupportEntryPointIngestPayload,
   type SupportEntryPointMessage,
   type SupportEntryPointThread,
   supportEntryPointAuthorSchema,
+  supportEntryPointImportMessageSchema,
+  supportEntryPointImportThreadSchema,
   supportEntryPointIngestSchema,
   supportEntryPointMessageSchema,
   supportEntryPointThreadSchema,
@@ -96,3 +100,8 @@ export {
   requestAuthorizationUrl,
   revokeAuthorization,
 } from "./authorization";
+export {
+  type ThreadImportJobData,
+  threadImportJobId,
+  threadImportQueueName,
+} from "./thread-import";

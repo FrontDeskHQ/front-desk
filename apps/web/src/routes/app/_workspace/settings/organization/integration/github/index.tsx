@@ -257,7 +257,6 @@ function RouteComponent() {
           )}
         </CardContent>
       </Card>
-      {/* SyncStatus omitted: GitHub integration does not support backfill */}
     </div>
   );
 }

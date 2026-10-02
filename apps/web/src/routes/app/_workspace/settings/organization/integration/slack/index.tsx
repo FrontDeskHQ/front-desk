@@ -17,7 +17,7 @@ import type { z } from "zod";
 import { ChannelPicker } from "~/components/channel-picker";
 import type { ChannelOption } from "~/components/channel-picker";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
-import { SyncStatus } from "~/components/integration-settings/sync-status";
+import { ThreadImportLink } from "~/components/integration-settings/thread-import";
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
@@ -201,15 +201,12 @@ function RouteComponent() {
                     if (!activeOrg?.id) return [];
                     const slackTeamId = parsedConfig?.data?.teamId;
                     const result =
-                      await fetchClient.mutate.integration.fetchSlackChannels(
-                        {
-                          organizationId: activeOrg.id,
-                          ...(slackTeamId === null ||
-                          slackTeamId === undefined
-                            ? {}
-                            : { teamId: String(slackTeamId) }),
-                        }
-                      );
+                      await fetchClient.mutate.integration.fetchSlackChannels({
+                        organizationId: activeOrg.id,
+                        ...(slackTeamId === null || slackTeamId === undefined
+                          ? {}
+                          : { teamId: String(slackTeamId) }),
+                      });
                     return result.channels.map((c) => ({
                       id: c.id,
                       name: c.name,
@@ -256,12 +253,7 @@ function RouteComponent() {
           )}
         </CardContent>
       </Card>
-      {integration?.enabled && (
-        <SyncStatus
-          backfill={parsedConfig?.data?.backfill}
-          integrationType="slack"
-        />
-      )}
+      {integration?.enabled && <ThreadImportLink />}
     </div>
   );
 }
