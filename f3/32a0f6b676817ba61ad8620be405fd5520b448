@@ -1,0 +1,27 @@
+apps/web/src/routes/app/_workspace/settings/organization/import.tsx
+  s_9606215a6b8d0e::t_b89b1869e44cf3 22,192-193,195-201,204-207,242,308-309,313,403,405,408-410,412-413
+  s_9606215a6b8d0e::t_14f7c5c7bed5da 298,415-417
+  s_9606215a6b8d0e::t_b702cdd8638f49 18,314-317,327-344,347-350,353-389,391-399
+  s_9606215a6b8d0e::t_6a35d05e7cf3c4 145,183-185,187
+  s_9606215a6b8d0e::t_7d3ccfdc72b6ff 188-191,194,202-203
+  s_9606215a6b8d0e::t_255adb50f0c1eb 208-211
+  s_9606215a6b8d0e::t_9407596f1a1cbd 186,351-352,390
+  s_9606215a6b8d0e::t_c360c611487b57 221-222,235,239,243-252,254-275,280-282,286-294,318-325
+  s_9606215a6b8d0e::t_59e605d993bf39 345-346
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f332a0f6b676817ba61ad8620be405fd5520b448",
+  "prompts": {},
+  "sessions": {
+    "s_9606215a6b8d0e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e62b81d-e1c8-41a9-aa1a-6889120d6c8f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
