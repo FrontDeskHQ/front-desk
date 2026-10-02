@@ -1,0 +1,19 @@
+apps/web/src/components/integration-settings/thread-import.tsx
+  s_9606215a6b8d0e::t_bbfce501bebe55 68,76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "40462bc3532da39ee0e9765d218fca017053afbe",
+  "prompts": {},
+  "sessions": {
+    "s_9606215a6b8d0e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e62b81d-e1c8-41a9-aa1a-6889120d6c8f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
