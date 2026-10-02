@@ -65,7 +65,7 @@ export const describeThreadImport = (
 export function ThreadImportLink() {
   return (
     <Card className="bg-muted/30">
-      <CardContent className="flex gap-8 items-center justify-between">
+      <CardContent className="flex-row gap-8 items-center justify-between">
         <div className="flex flex-col">
           <div>Import threads</div>
           <div className="text-muted-foreground">
@@ -73,7 +73,7 @@ export function ThreadImportLink() {
           </div>
         </div>
         <Link
-          className="flex items-center gap-1 text-sm hover:underline"
+          className="flex shrink-0 items-center gap-1 text-sm hover:underline"
           to="/app/settings/organization/import"
         >
           Go to Import threads <ArrowRight className="size-3.5" />
