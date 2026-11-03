@@ -1,0 +1,11 @@
+packages/ui/src/routes/button.tsx
+  ai_agent 36
+packages/ui/src/routes/surface-frame.tsx
+  ai_agent 204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c935848b7d03d8f63f285589b8e885e058dbc89e",
+  "prompts": {}
+}
