@@ -33,7 +33,7 @@ function RouteComponent() {
     <DocPage meta={meta}>
       <DocSection
         title="Variants"
-        description="Primary uses the strong Surface Frame bevel for contrast against blue. Secondary and destructive use the subtle bevel. All four framed variants use elevation-xs; outline has no bevel and uses transparent or translucent chrome. In dark mode, its hover fill brightens slightly and its pressed fill darkens to keep the border distinct. Ghost and link stay flat."
+        description="Primary uses the strong Surface Frame bevel for contrast against blue. Secondary, destructive, and outline use the subtle bevel. All four framed variants use elevation-xs; outline uses transparent or translucent chrome. In dark mode, its hover fill brightens slightly and its pressed fill darkens to keep the border distinct. Ghost and link stay flat."
       >
         <Demo
           code={`<Button variant="primary">Primary</Button>

@@ -201,7 +201,7 @@ function RouteComponent() {
 
       <DocSection
         title="Transparent chrome"
-        description="Use before:bg-transparent or a background token with opacity. The root paints only its translucent border; the fill lives on ::before inside it. Elevation casts outside the border, so the translucent edge is not tinted by the shadow."
+        description="Use before:bg-transparent or a background token with opacity. The root paints only its translucent border; the fill lives on ::before inside it. Elevation casts outside the border and does not tint it; the 1px bevel on ::before does show through the bottom border row (top in dark mode)."
       >
         <Demo
           code={`<div className="flex gap-8 bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
