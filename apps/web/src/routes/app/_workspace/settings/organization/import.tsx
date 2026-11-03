@@ -233,21 +233,32 @@ function NewImportDialog({
 
   const importMutation = useMutation({
     // One run per source: a run imports from a single integration.
-    mutationFn: () =>
+    mutationFn: (batch: typeof chosen) =>
       Promise.allSettled(
-        chosen.map(({ source, channels }) =>
+        batch.map(({ source, channels }) =>
           fetchClient.mutate.integration.importThreads({
             channelIds: channels.map((c) => c.id),
             integrationId: source.integrationId,
           })
         )
       ),
-    onSuccess: (results) => {
+    onSuccess: (results, batch) => {
       const failure = results.find((r) => r.status === "rejected");
       if (failure) {
         toast.error(
           getErrorMessage(failure.reason, "Couldn't start the import.")
         );
+        // Leave only the failed sources ticked, so a retry doesn't start a
+        // second run for the ones that went through.
+        setSelection((current) => {
+          const next = new Map(current);
+          batch.forEach(({ source }, i) => {
+            if (results[i]?.status === "fulfilled") {
+              next.delete(source.integrationId);
+            }
+          });
+          return next;
+        });
       }
       if (
         results.some(
@@ -405,7 +416,7 @@ function NewImportDialog({
           </Button>
           <Button
             disabled={chosen.length === 0 || importMutation.isPending}
-            onClick={() => importMutation.mutate()}
+            onClick={() => importMutation.mutate(chosen)}
           >
             {channelCount === 0
               ? "Start import"
