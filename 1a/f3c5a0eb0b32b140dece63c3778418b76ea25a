@@ -1,0 +1,20 @@
+apps/api/src/lib/queue.ts
+  s_d665ae581f0ca9::t_767b0f1aa2d2fd 446-449
+  s_d665ae581f0ca9::t_3a64da9af4cd8c 395-427
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1af3c5a0eb0b32b140dece63c3778418b76ea25a",
+  "prompts": {},
+  "sessions": {
+    "s_d665ae581f0ca9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "025cc470-fc27-42d4-9c72-21ad74ad37b4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
