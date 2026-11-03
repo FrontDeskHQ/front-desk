@@ -1,0 +1,22 @@
+apps/web/src/routes/app/_workspace/settings/organization/import.tsx
+  s_73c32ba8147a1c::t_05fd599783ccf2 317,319-321
+  s_73c32ba8147a1c::t_3775b6df43f038 318
+  s_73c32ba8147a1c::t_df6a49763a0730 18
+  s_73c32ba8147a1c::t_f684c2036e5c75 407
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1efea5a776bd7a84327ca941693556ce53fdf871",
+  "prompts": {},
+  "sessions": {
+    "s_73c32ba8147a1c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "55b53f6a-0288-475f-bd4c-64d3e929e556",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
