@@ -18,8 +18,8 @@ export const threadImportQueueName = (provider: string): string =>
   `${provider}-thread-import`;
 
 /**
- * One job id per integration, so a second click while an import is queued or
- * running coalesces onto it. BullMQ rejects `:` in custom ids.
+ * One deduplication id per integration, so a second click while an import is
+ * queued or running coalesces onto it.
  */
-export const threadImportJobId = (integrationId: string): string =>
+export const threadImportDeduplicationId = (integrationId: string): string =>
   `import_${integrationId}`;

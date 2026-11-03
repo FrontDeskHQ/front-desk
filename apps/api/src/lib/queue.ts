@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  threadImportJobId,
+  threadImportDeduplicationId,
   threadImportQueueName,
 } from "@connectors/framework";
 import type { ThreadImportJobData } from "@connectors/framework";
@@ -449,23 +449,21 @@ export const enqueueThreadImport = async (
   ) {
     return "queue_unavailable";
   }
-  const jobId = threadImportJobId(data.integrationId);
-  const existing = await queue.getJob(jobId);
-  if (existing) {
-    const state = await existing.getState();
-    if (state !== "completed" && state !== "failed") {
-      return "running";
-    }
-    await existing.remove();
+  const deduplicationId = threadImportDeduplicationId(data.integrationId);
+  if (await queue.getDeduplicationJobId(deduplicationId)) {
+    return "running";
   }
   await beforeAdd();
+  // Each run gets its own job id; the deduplication id holds one live job per
+  // integration and is released when that job finishes. On a lost race BullMQ
+  // returns a job carrying our payload but the winner's id, so the id is the
+  // only reliable signal of who enqueued.
   const job = await queue.add("import-threads", data, {
     attempts: 1,
-    jobId,
+    deduplication: { id: deduplicationId },
+    jobId: data.runId,
     removeOnComplete: true,
     removeOnFail: true,
   });
-  // BullMQ keeps the existing job on a duplicate id, so a concurrent click
-  // that also passed the check above lands here with someone else's job.
-  return job.data.runId === data.runId ? "enqueued" : "running";
+  return job.id === data.runId ? "enqueued" : "running";
 };

@@ -102,6 +102,6 @@ export {
 } from "./authorization";
 export {
   type ThreadImportJobData,
-  threadImportJobId,
+  threadImportDeduplicationId,
   threadImportQueueName,
 } from "./thread-import";
