@@ -392,6 +392,39 @@ const getThreadImportQueue = (
   return queue;
 };
 
+/** How long an owner's "Import threads" click waits for Redis before failing. */
+const THREAD_IMPORT_READY_TIMEOUT_MS = 5000;
+
+/**
+ * Whether the shared queue connection is (or becomes, within `timeoutMs`)
+ * ready. BullMQ waits for `ready` with no deadline and ioredis reconnects
+ * forever, so without this an enqueue against an unreachable Redis hangs and
+ * then runs once Redis is back, after the caller was already told it failed.
+ */
+const isQueueConnectionReady = async (timeoutMs: number): Promise<boolean> => {
+  const current = connection;
+  if (!current) {
+    return false;
+  }
+  if (current.status === "ready") {
+    return true;
+  }
+  let onReady: (() => void) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await new Promise<boolean>((resolve) => {
+      onReady = () => resolve(true);
+      current.once("ready", onReady);
+      timer = setTimeout(() => resolve(false), timeoutMs);
+    });
+  } finally {
+    clearTimeout(timer);
+    if (onReady) {
+      current.removeListener("ready", onReady);
+    }
+  }
+};
+
 export type ThreadImportEnqueueOutcome =
   | "enqueued"
   | "running"
@@ -410,7 +443,10 @@ export const enqueueThreadImport = async (
   beforeAdd: () => Promise<void>
 ): Promise<ThreadImportEnqueueOutcome> => {
   const queue = getThreadImportQueue(provider);
-  if (!queue) {
+  if (
+    !queue ||
+    !(await isQueueConnectionReady(THREAD_IMPORT_READY_TIMEOUT_MS))
+  ) {
     return "queue_unavailable";
   }
   const jobId = threadImportJobId(data.integrationId);
