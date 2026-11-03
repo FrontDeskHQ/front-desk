@@ -20,7 +20,7 @@ import { TreeItem, TreeItemRow, TreeList } from "@workspace/ui/components/tree";
 import { getErrorMessage } from "api/errors";
 import { formatDistanceToNow } from "date-fns";
 import { useAtomValue } from "jotai/react";
-import { Hash, Info, Plus } from "lucide-react";
+import { Hash, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -190,26 +190,6 @@ function SourceIcon({ type }: { type: string }) {
   );
 }
 
-/** What every import does, shown under the channel picker. */
-function ImportNotice({ allowance }: { allowance: number | null }) {
-  return (
-    <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
-      <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-      <ul className="flex flex-col gap-1 text-muted-foreground">
-        <li>Newest threads come in first.</li>
-        <li>Threads already in FrontDesk are skipped.</li>
-        {allowance === null ? null : (
-          <li>
-            Your plan imports up to{" "}
-            <span className="text-foreground">{allowance} threads</span> in
-            total.
-          </li>
-        )}
-      </ul>
-    </div>
-  );
-}
-
 function RunningDot() {
   return (
     <span className="relative flex size-2">
@@ -314,100 +294,110 @@ function NewImportDialog({
         {
           // One root per source: siblings at the root would draw a guide
           // line through the earlier sources' channels.
-          <SurfaceFrame
-            className="flex flex-col gap-2 p-3 before:bg-background-primary"
-            elevation="xs"
-            radius="md"
-          >
-            {sources.map((source) => {
-              const option = requireIntegrationOption(source.type);
-              const picked = selection.get(source.integrationId);
-              const pickedCount = source.channels.filter((c) =>
-                picked?.has(c.id)
-              ).length;
-              const all =
-                source.channels.length > 0 &&
-                pickedCount === source.channels.length;
-              return (
-                <TreeList key={source.integrationId}>
-                  <TreeItem>
-                    <TreeItemRow>
-                      <label className="flex flex-1 items-center gap-2 cursor-pointer">
-                        <Checkbox
-                          checked={
-                            all
-                              ? true
-                              : pickedCount > 0
-                                ? "indeterminate"
-                                : false
-                          }
-                          disabled={source.channels.length === 0}
-                          onCheckedChange={() =>
-                            setChannels(source.integrationId, (ids) => {
-                              ids.clear();
-                              if (!all) {
-                                for (const c of source.channels) {
-                                  ids.add(c.id);
-                                }
-                              }
-                            })
-                          }
-                        />
-                        <SourceIcon type={source.type} />
-                        <span>{option.label}</span>
-                      </label>
-                    </TreeItemRow>
-                    {source.channels.length === 0 ? (
-                      <TreeList>
-                        <TreeItem>
-                          <TreeItemRow>
-                            <span className="text-muted-foreground">
-                              No support channels selected.{" "}
-                              <Link
-                                className="underline"
-                                to="/app/settings/organization/integration"
-                              >
-                                Choose some
-                              </Link>{" "}
-                              first.
-                            </span>
-                          </TreeItemRow>
-                        </TreeItem>
-                      </TreeList>
-                    ) : (
-                      <TreeList>
-                        {source.channels.map((c) => (
-                          <TreeItem key={c.id}>
-                            <TreeItemRow>
-                              <label className="flex flex-1 items-center gap-2 cursor-pointer">
-                                <Checkbox
-                                  checked={picked?.has(c.id) ?? false}
-                                  onCheckedChange={() =>
-                                    setChannels(source.integrationId, (ids) => {
-                                      if (ids.has(c.id)) {
-                                        ids.delete(c.id);
-                                      } else {
-                                        ids.add(c.id);
-                                      }
-                                    })
+          <div>
+            <SurfaceFrame
+              className="relative z-10 flex flex-col gap-2 p-3 before:bg-background-primary"
+              elevation="xs"
+              radius="md"
+            >
+              {sources.map((source) => {
+                const option = requireIntegrationOption(source.type);
+                const picked = selection.get(source.integrationId);
+                const pickedCount = source.channels.filter((c) =>
+                  picked?.has(c.id)
+                ).length;
+                const all =
+                  source.channels.length > 0 &&
+                  pickedCount === source.channels.length;
+                return (
+                  <TreeList key={source.integrationId}>
+                    <TreeItem>
+                      <TreeItemRow>
+                        <label className="flex flex-1 items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={
+                              all
+                                ? true
+                                : pickedCount > 0
+                                  ? "indeterminate"
+                                  : false
+                            }
+                            disabled={source.channels.length === 0}
+                            onCheckedChange={() =>
+                              setChannels(source.integrationId, (ids) => {
+                                ids.clear();
+                                if (!all) {
+                                  for (const c of source.channels) {
+                                    ids.add(c.id);
                                   }
-                                />
-                                <Hash className="size-3.5 shrink-0 text-muted-foreground" />
-                                <span>{c.name}</span>
-                              </label>
+                                }
+                              })
+                            }
+                          />
+                          <SourceIcon type={source.type} />
+                          <span>{option.label}</span>
+                        </label>
+                      </TreeItemRow>
+                      {source.channels.length === 0 ? (
+                        <TreeList>
+                          <TreeItem>
+                            <TreeItemRow>
+                              <span className="text-muted-foreground">
+                                No support channels selected.{" "}
+                                <Link
+                                  className="underline"
+                                  to="/app/settings/organization/integration"
+                                >
+                                  Choose some
+                                </Link>{" "}
+                                first.
+                              </span>
                             </TreeItemRow>
                           </TreeItem>
-                        ))}
-                      </TreeList>
-                    )}
-                  </TreeItem>
-                </TreeList>
-              );
-            })}
-          </SurfaceFrame>
+                        </TreeList>
+                      ) : (
+                        <TreeList>
+                          {source.channels.map((c) => (
+                            <TreeItem key={c.id}>
+                              <TreeItemRow>
+                                <label className="flex flex-1 items-center gap-2 cursor-pointer">
+                                  <Checkbox
+                                    checked={picked?.has(c.id) ?? false}
+                                    onCheckedChange={() =>
+                                      setChannels(
+                                        source.integrationId,
+                                        (ids) => {
+                                          if (ids.has(c.id)) {
+                                            ids.delete(c.id);
+                                          } else {
+                                            ids.add(c.id);
+                                          }
+                                        }
+                                      )
+                                    }
+                                  />
+                                  <Hash className="size-3.5 shrink-0 text-muted-foreground" />
+                                  <span>{c.name}</span>
+                                </label>
+                              </TreeItemRow>
+                            </TreeItem>
+                          ))}
+                        </TreeList>
+                      )}
+                    </TreeItem>
+                  </TreeList>
+                );
+              })}
+            </SurfaceFrame>
+            {allowance === null ? null : (
+              <div className="-mt-3 mx-px rounded-b-md border-x border-b border-border-primary bg-background-tertiary px-3 pt-5 pb-2 text-muted-foreground text-xs">
+                Your plan imports up to{" "}
+                <span className="text-foreground">{allowance} threads</span> in
+                total.
+              </div>
+            )}
+          </div>
         }
-
-        <ImportNotice allowance={allowance} />
 
         <DialogFooter>
           <Button onClick={close} variant="ghost">
