@@ -1,0 +1,23 @@
+apps/api/src/lib/queue.ts
+  s_51b3c89e449d2a::t_ffeb1307e932c0 4,452-454,457-460,463-464,468
+connectors/framework/src/thread-import.ts
+  s_51b3c89e449d2a::t_ffeb1307e932c0 21-22,24
+connectors/framework/src/index.ts
+  s_51b3c89e449d2a::t_ffeb1307e932c0 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "01ad6b4dcbc3d2456e3d6baaa03ddf6e70320b09",
+  "prompts": {},
+  "sessions": {
+    "s_51b3c89e449d2a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a20854-baf4-4b2a-a1d4-0c3315f1be0d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
