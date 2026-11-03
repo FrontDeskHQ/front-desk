@@ -1,0 +1,21 @@
+packages/ui/src/styles/globals.css
+  s_5d09d5f1818a8b::t_c5cc0c0d09553b 369-373
+packages/ui/src/components/button.tsx
+  s_5d09d5f1818a8b::t_c5cc0c0d09553b 31,36,38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "aecc9555fc82b70648ca38a70bc66828be96bac1",
+  "prompts": {},
+  "sessions": {
+    "s_5d09d5f1818a8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92204f83-5aaa-433b-b181-55fa61888516",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
