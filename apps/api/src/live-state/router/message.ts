@@ -37,7 +37,6 @@ const messageCreateInputSchema = z.object({
   createdAt: z.coerce.date().optional(),
   externalMessageId: z.string().nullable().optional(),
   id: z.string().optional(),
-  isBackfill: z.boolean().optional(),
   organizationId: z.string().optional(),
   origin: callerOriginSchema,
   threadId: z.string(),
@@ -274,7 +273,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         createdAt: req.input.createdAt ?? new Date(),
         externalMessageId: req.input.externalMessageId ?? null,
         id: messageId,
-        isBackfill: req.input.isBackfill ?? false,
         origin: req.input.origin ?? null,
         threadId: req.input.threadId,
       });

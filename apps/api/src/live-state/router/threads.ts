@@ -77,7 +77,6 @@ const integrationFirstMessageSchema = z.object({
   createdAt: z.coerce.date().optional(),
   externalMessageId: z.string().nullable().optional(),
   id: z.string().optional(),
-  isBackfill: z.boolean().optional(),
   origin: callerOriginSchema,
 });
 
@@ -265,6 +264,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         externalOrigin: req.input.externalOrigin ?? null,
         externalPrId: null,
         id: threadId,
+        importedAt: null,
         name: req.input.title,
         organizationId,
         priority: 0,
@@ -279,7 +279,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         createdAt: firstMessage?.createdAt ?? new Date(),
         externalMessageId: firstMessage?.externalMessageId ?? null,
         id: firstMessage?.id ?? ulid().toLowerCase(),
-        isBackfill: firstMessage?.isBackfill ?? false,
         origin: firstMessage?.origin ?? null,
         threadId,
       });

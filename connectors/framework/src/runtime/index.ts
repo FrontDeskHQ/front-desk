@@ -1,4 +1,3 @@
-export { type BackfillStatus, createBackfillHelpers } from "./backfill";
 export { createReflagClient, type ReflagClient } from "./feature-flag";
 export {
   type CreateLiveStateClientOptions,
@@ -22,3 +21,10 @@ export {
   type Worker,
 } from "./redis";
 export { createSettingsParser, safeParseJSON } from "./settings";
+export {
+  runThreadImport,
+  startThreadImportWorker,
+  type ThreadImportCandidate,
+  type ThreadImportPayload,
+  type ThreadImportSource,
+} from "./thread-import";

@@ -43,6 +43,7 @@ import { Route as AppWorkspaceMainPlaygroundIndexRouteImport } from "./routes/ap
 import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from "./routes/app/_workspace/settings/organization/team"
 import { Route as AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport } from "./routes/app/_workspace/settings/organization/support-intelligence"
 import { Route as AppWorkspaceSettingsOrganizationLabelsRouteImport } from "./routes/app/_workspace/settings/organization/labels"
+import { Route as AppWorkspaceSettingsOrganizationImportRouteImport } from "./routes/app/_workspace/settings/organization/import"
 import { Route as AppWorkspaceSettingsOrganizationDocumentationRouteImport } from "./routes/app/_workspace/settings/organization/documentation"
 import { Route as AppWorkspaceSettingsOrganizationBillingRouteImport } from "./routes/app/_workspace/settings/organization/billing"
 import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from "./routes/app/_workspace/settings/organization/api-keys"
@@ -245,6 +246,12 @@ const AppWorkspaceSettingsOrganizationLabelsRoute =
     path: "/labels",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationImportRoute =
+  AppWorkspaceSettingsOrganizationImportRouteImport.update({
+    id: "/import",
+    path: "/import",
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationDocumentationRoute =
   AppWorkspaceSettingsOrganizationDocumentationRouteImport.update({
     id: "/documentation",
@@ -385,6 +392,7 @@ export interface FileRoutesByFullPath {
   "/app/settings/organization/api-keys": typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   "/app/settings/organization/billing": typeof AppWorkspaceSettingsOrganizationBillingRoute
   "/app/settings/organization/documentation": typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  "/app/settings/organization/import": typeof AppWorkspaceSettingsOrganizationImportRoute
   "/app/settings/organization/labels": typeof AppWorkspaceSettingsOrganizationLabelsRoute
   "/app/settings/organization/support-intelligence": typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
   "/app/settings/organization/team": typeof AppWorkspaceSettingsOrganizationTeamRoute
@@ -429,6 +437,7 @@ export interface FileRoutesByTo {
   "/app/settings/organization/api-keys": typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   "/app/settings/organization/billing": typeof AppWorkspaceSettingsOrganizationBillingRoute
   "/app/settings/organization/documentation": typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  "/app/settings/organization/import": typeof AppWorkspaceSettingsOrganizationImportRoute
   "/app/settings/organization/labels": typeof AppWorkspaceSettingsOrganizationLabelsRoute
   "/app/settings/organization/support-intelligence": typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
   "/app/settings/organization/team": typeof AppWorkspaceSettingsOrganizationTeamRoute
@@ -484,6 +493,7 @@ export interface FileRoutesById {
   "/app/_workspace/settings/organization/api-keys": typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   "/app/_workspace/settings/organization/billing": typeof AppWorkspaceSettingsOrganizationBillingRoute
   "/app/_workspace/settings/organization/documentation": typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  "/app/_workspace/settings/organization/import": typeof AppWorkspaceSettingsOrganizationImportRoute
   "/app/_workspace/settings/organization/labels": typeof AppWorkspaceSettingsOrganizationLabelsRoute
   "/app/_workspace/settings/organization/support-intelligence": typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
   "/app/_workspace/settings/organization/team": typeof AppWorkspaceSettingsOrganizationTeamRoute
@@ -537,6 +547,7 @@ export interface FileRouteTypes {
     | "/app/settings/organization/api-keys"
     | "/app/settings/organization/billing"
     | "/app/settings/organization/documentation"
+    | "/app/settings/organization/import"
     | "/app/settings/organization/labels"
     | "/app/settings/organization/support-intelligence"
     | "/app/settings/organization/team"
@@ -581,6 +592,7 @@ export interface FileRouteTypes {
     | "/app/settings/organization/api-keys"
     | "/app/settings/organization/billing"
     | "/app/settings/organization/documentation"
+    | "/app/settings/organization/import"
     | "/app/settings/organization/labels"
     | "/app/settings/organization/support-intelligence"
     | "/app/settings/organization/team"
@@ -635,6 +647,7 @@ export interface FileRouteTypes {
     | "/app/_workspace/settings/organization/api-keys"
     | "/app/_workspace/settings/organization/billing"
     | "/app/_workspace/settings/organization/documentation"
+    | "/app/_workspace/settings/organization/import"
     | "/app/_workspace/settings/organization/labels"
     | "/app/_workspace/settings/organization/support-intelligence"
     | "/app/_workspace/settings/organization/team"
@@ -908,6 +921,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationLabelsRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
+    "/app/_workspace/settings/organization/import": {
+      id: "/app/_workspace/settings/organization/import"
+      path: "/import"
+      fullPath: "/app/settings/organization/import"
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationImportRouteImport
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
+    }
     "/app/_workspace/settings/organization/documentation": {
       id: "/app/_workspace/settings/organization/documentation"
       path: "/documentation"
@@ -1159,6 +1179,7 @@ interface AppWorkspaceSettingsOrganizationRouteRouteChildren {
   AppWorkspaceSettingsOrganizationApiKeysRoute: typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   AppWorkspaceSettingsOrganizationBillingRoute: typeof AppWorkspaceSettingsOrganizationBillingRoute
   AppWorkspaceSettingsOrganizationDocumentationRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  AppWorkspaceSettingsOrganizationImportRoute: typeof AppWorkspaceSettingsOrganizationImportRoute
   AppWorkspaceSettingsOrganizationLabelsRoute: typeof AppWorkspaceSettingsOrganizationLabelsRoute
   AppWorkspaceSettingsOrganizationSupportIntelligenceRoute: typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
@@ -1175,6 +1196,8 @@ const AppWorkspaceSettingsOrganizationRouteRouteChildren: AppWorkspaceSettingsOr
       AppWorkspaceSettingsOrganizationBillingRoute,
     AppWorkspaceSettingsOrganizationDocumentationRoute:
       AppWorkspaceSettingsOrganizationDocumentationRoute,
+    AppWorkspaceSettingsOrganizationImportRoute:
+      AppWorkspaceSettingsOrganizationImportRoute,
     AppWorkspaceSettingsOrganizationLabelsRoute:
       AppWorkspaceSettingsOrganizationLabelsRoute,
     AppWorkspaceSettingsOrganizationSupportIntelligenceRoute:

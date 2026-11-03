@@ -1,24 +1,12 @@
-import {
-  createBackfillHelpers,
-  createSettingsParser,
-} from "@connectors/framework/runtime";
+import { createSettingsParser } from "@connectors/framework/runtime";
 import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import type { Message } from "discord.js";
-
-import { fetchClient } from "./live-state";
 
 export { safeParseJSON } from "@connectors/framework/runtime";
 
 export const { safeParseIntegrationSettings } = createSettingsParser(
   discordIntegrationSchema
 );
-
-export const {
-  withBackfillLock,
-  updateBackfillStatus,
-  updateSyncedChannels,
-  getBackfillLimit,
-} = createBackfillHelpers(fetchClient);
 
 export const parseContentAsMarkdown = (message: Message): string => {
   let { content } = message;

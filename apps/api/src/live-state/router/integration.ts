@@ -9,6 +9,7 @@ import {
 } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
+import { selectedSupportChannels } from "@workspace/schemas/integration/support-channels";
 import type { IssueIndexJobData } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -26,7 +27,11 @@ import {
   writeIntegrationCredential,
   writeIntegrationCredentialInTransaction,
 } from "../../lib/integration-credential";
-import { enqueueGithubBackfill, enqueueIssueIndex } from "../../lib/queue";
+import {
+  enqueueGithubBackfill,
+  enqueueIssueIndex,
+  enqueueThreadImport,
+} from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import { slackChannelsCache } from "./slack-channels";
@@ -64,12 +69,20 @@ const integrationIdInputSchema = z.object({
   integrationId: z.string().min(1),
 });
 
+const importThreadsInputSchema = z.object({
+  channelIds: z.array(z.string().min(1)).min(1),
+  integrationId: z.string().min(1),
+});
+
 /** Opaque to core: only the connector interprets its credential. */
 const credentialValueSchema = z
   .unknown()
   .refine((value) => value !== undefined && value !== null, {
     message: "CREDENTIAL_REQUIRED",
   });
+
+/** Support connectors that implement "Import threads". */
+const THREAD_IMPORT_PROVIDERS = new Set(["discord", "slack"]);
 
 const AUTHORIZATION_STATE_TTL_MS = 10 * 60_000;
 
@@ -420,9 +433,8 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         updatedAt: now,
       });
 
-      // Type-gated: backfill-on-reenable is github's own catch-up path. Other
-      // connectors re-enable without one (discord backfills off its own
-      // integration-change subscription).
+      // Type-gated: backfill-on-reenable is github's own catch-up path. Support
+      // connectors import history only when the owner asks ("Import threads").
       if (integration.type === "github") {
         await enqueueGithubReenableBackfill(
           integration.organizationId,
@@ -675,6 +687,119 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       }
       await finalizeDisconnect(db, current);
       return { ok: true };
+    }
+  ),
+
+  /**
+   * "Import threads": start importing the newest eligible history from the
+   * integration's selected support channels, up to the organization's
+   * allowance. Owner-triggered only; selecting channels never imports.
+   */
+  importThreads: mutation(importThreadsInputSchema).handler(
+    async ({ req, db }) => {
+      const integration = await db.integration
+        .one(req.input.integrationId)
+        .get();
+      if (!integration) {
+        throw errors.notFound("integration");
+      }
+      authorize(req, {
+        organizationId: integration.organizationId,
+        role: "owner",
+      });
+      if (!THREAD_IMPORT_PROVIDERS.has(integration.type)) {
+        throw errors.badRequest(
+          "THREAD_IMPORT_NOT_SUPPORTED",
+          "This integration can't import threads."
+        );
+      }
+      if (!integration.enabled) {
+        throw errors.badRequest(
+          "INTEGRATION_DISABLED",
+          "Reconnect the integration before importing threads."
+        );
+      }
+
+      const supportChannels =
+        selectedSupportChannels(integration.type, integration.configStr) ?? [];
+      const requested = new Set(req.input.channelIds);
+      const channels = supportChannels.filter((c) => requested.has(c.id));
+      if (channels.length !== requested.size) {
+        throw errors.badRequest(
+          "THREAD_IMPORT_CHANNEL_NOT_SELECTED",
+          "Only selected support channels can be imported from."
+        );
+      }
+
+      const now = new Date();
+      const runId = ulid().toLowerCase();
+      const startedAt = now.toISOString();
+      let runCreated = false;
+      const unavailable = (cause?: unknown) =>
+        errors.serviceUnavailable(
+          "THREAD_IMPORT_UNAVAILABLE",
+          "Importing threads is unavailable right now. Try again in a moment.",
+          cause === undefined ? undefined : { cause }
+        );
+      // A run whose job never made it onto the queue ends as a failed run
+      // rather than sitting in "finding" forever.
+      const failRun = async () => {
+        if (!runCreated) {
+          return;
+        }
+        await db.threadImportRun
+          .update(runId, {
+            status: {
+              exhausted: false,
+              failed: 1,
+              finishedAt: new Date().toISOString(),
+              imported: 0,
+              startedAt,
+              state: "done",
+            },
+            updatedAt: new Date(),
+          })
+          .catch((error: unknown) => {
+            console.error(
+              `[thread-import] Failed to fail run ${runId}:`,
+              error
+            );
+          });
+      };
+      const outcome = await enqueueThreadImport(
+        integration.type,
+        {
+          channelIds: channels.map((c) => c.id),
+          integrationId: integration.id,
+          runId,
+        },
+        // The row exists before the job so the connector's first report has
+        // somewhere to land. From then on the connector owns `status`.
+        async () => {
+          await db.threadImportRun.insert({
+            channels,
+            createdAt: now,
+            id: runId,
+            integrationId: integration.id,
+            organizationId: integration.organizationId,
+            status: { startedAt, state: "finding" },
+            updatedAt: now,
+          });
+          runCreated = true;
+        }
+      ).catch(async (cause: unknown) => {
+        await failRun();
+        throw unavailable(cause);
+      });
+      if (outcome === "queue_unavailable") {
+        throw unavailable();
+      }
+      if (outcome === "running") {
+        // Lost a race with a concurrent click after the row was created; no
+        // job will ever report to it.
+        await failRun();
+      }
+      return { outcome };
     }
   ),
 

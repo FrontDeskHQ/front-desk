@@ -8,11 +8,13 @@ Tracked as a sibling mini-project to FRO-190 (not more children of it): FRO-190 
 
 accepted
 
+> **Amended (2026-09-29, FRO-225).** Automatic backfill on channel selection is gone. History comes in only through the owner's explicit "Import threads" action: the connector finds and loads complete threads (`@connectors/framework/runtime` `runThreadImport`), and the core stores each one with `ingest.importThread` in one transaction, enforces the plan's import allowance, and enqueues its single thread read. `ingest` no longer takes `isBackfill`; imported messages carry it, and it suppresses their per-message read trigger.
+
 ## Decisions
 
 - **Ingest is a live-state custom mutation procedure, not HTTP.** The two capability legs are genuinely asymmetric: the invoked leg is HTTP because it is core → connector, but ingest is connector → core, where the connectors are already live-state clients. A typed `mutate.ingest(...)` procedure gives the API server-side ownership of normalization while preserving real-time sync and the typed client. Forcing HTTP symmetry on the inbound leg buys nothing real and would stand up a second inbound transport + auth surface.
 
-- **One idempotent `ingest` call; the framework owns create-vs-append.** The connector no longer branches on "is this the first message" (killing the fragile `THREAD_CREATION_THRESHOLD_MS` timing heuristic) and no longer does its own `byExternalId` dedup. `ingest({ thread?, message, author, isBackfill })` is idempotent on `(organizationId, externalThreadId, externalMessageId)`: if no thread exists for the external thread → create using the `thread` descriptor + this message as first; else → append, deduped on `externalMessageId`.
+- **One idempotent `ingest` call; the framework owns create-vs-append.** The connector no longer branches on "is this the first message" (killing the fragile `THREAD_CREATION_THRESHOLD_MS` timing heuristic) and no longer does its own `byExternalId` dedup. `ingest({ thread?, message, author })` (`isBackfill` removed, see the FRO-225 amendment) is idempotent on `(organizationId, externalThreadId, externalMessageId)`: if no thread exists for the external thread → create using the `thread` descriptor + this message as first; else → append, deduped on `externalMessageId`.
 
 - **The `thread` descriptor is optional; the connector decides when to attach it; the framework hard-errors on a missing thread for an unknown external thread.** Provider-specific "is this a thread root?" logic (Discord thread-name resolution, Slack root detection) stays in the connector. If a message arrives for an external thread the framework doesn't know _and_ carries no thread descriptor, ingest fails loudly rather than silently creating a titleless thread — surfacing connector bugs instead of corrupting data.
 
@@ -28,6 +30,6 @@ accepted
 
 - Discord and Slack shrink to "translate provider event ↔ normalized ingest args"; the ingest/dedup/identity logic centralizes in the API.
 - The deprecated `thread.discordChannelId` column is dropped: ingest stops writing it, and the pull-deliver path migrates its channel-lookup reads to `externalId` (guarded by `externalOrigin`).
-- Backfill jobs stay in the connectors (integration apps own their jobs) but route through the same `mutate.ingest(..., isBackfill: true)`; `isBackfill` only suppresses downstream pipeline triggers.
+- ~~Backfill jobs stay in the connectors (integration apps own their jobs) but route through the same `mutate.ingest(..., isBackfill: true)`; `isBackfill` only suppresses downstream pipeline triggers.~~ Superseded by the FRO-225 amendment: connectors run "Import threads" jobs through `ingest.importThread`.
 - Inbound status (Discord archived → thread closed) stays a plain generic `thread.setStatus({ source })` mutation — already provider-neutral, not folded into ingest.
 - Rollout: (1) ingest contract + Discord tracer bullet, (2) Slack onto ingest, (3) runtime scaffolding lift, (4) drop `discordChannelId`.

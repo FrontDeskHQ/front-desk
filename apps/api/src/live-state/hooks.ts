@@ -24,6 +24,12 @@ export const liveStateHooks = defineHooks<typeof schema>({
             return;
           }
 
+          // Historical messages never trigger a read one by one: an import
+          // stores a whole thread and enqueues its single read itself.
+          if (value.isBackfill) {
+            return;
+          }
+
           // Only an inbound message causes a run (ADR 0017). A teammate's
           // reply typed by hand clears the standing read instead.
           //
@@ -72,11 +78,10 @@ export const liveStateHooks = defineHooks<typeof schema>({
             );
           }
 
-          const queuePriority = value.isBackfill ? "low" : "high";
           const result = await enqueueThreadRead(value.threadId, {
             kind: outbound ? "supersede" : "message",
             ...(organizationId ? { organizationId } : {}),
-            priority: queuePriority,
+            priority: "high",
           });
 
           if (

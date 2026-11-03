@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  threadImportDeduplicationId,
+  threadImportQueueName,
+} from "@connectors/framework";
+import type { ThreadImportJobData } from "@connectors/framework";
+import {
   configureThreadReadQueue,
   createQueueRedisConnection,
   enqueueThreadRead as enqueueDurableThreadRead,
@@ -86,9 +91,7 @@ export const enqueueThreadRead = async (
     threadId,
     {
       kind: opts.kind,
-      ...(opts.entityFinished
-        ? { entityFinished: opts.entityFinished }
-        : {}),
+      ...(opts.entityFinished ? { entityFinished: opts.entityFinished } : {}),
       ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
     },
     { delayMs: opts.delayMs, priority: opts.priority }
@@ -361,4 +364,106 @@ export const enqueueGithubBackfill = async (
   });
 
   return job.id ?? null;
+};
+
+// Thread import queues
+//
+// Each support connector (slack, discord) owns its import worker; the API only
+// enqueues. Queue names and job ids come from `@connectors/framework` so both
+// sides agree.
+const threadImportQueues = new Map<string, Queue<ThreadImportJobData>>();
+
+const getThreadImportQueue = (
+  provider: string
+): Queue<ThreadImportJobData> | null => {
+  const existing = threadImportQueues.get(provider);
+  if (existing) {
+    return existing;
+  }
+  connection ??= createApiRedisConnection();
+  if (!connection) {
+    return null;
+  }
+  const queue = new Queue<ThreadImportJobData>(
+    threadImportQueueName(provider),
+    { connection }
+  );
+  threadImportQueues.set(provider, queue);
+  return queue;
+};
+
+/** How long an owner's "Import threads" click waits for Redis before failing. */
+const THREAD_IMPORT_READY_TIMEOUT_MS = 5000;
+
+/**
+ * Whether the shared queue connection is (or becomes, within `timeoutMs`)
+ * ready. BullMQ waits for `ready` with no deadline and ioredis reconnects
+ * forever, so without this an enqueue against an unreachable Redis hangs and
+ * then runs once Redis is back, after the caller was already told it failed.
+ */
+const isQueueConnectionReady = async (timeoutMs: number): Promise<boolean> => {
+  const current = connection;
+  if (!current) {
+    return false;
+  }
+  if (current.status === "ready") {
+    return true;
+  }
+  let onReady: (() => void) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await new Promise<boolean>((resolve) => {
+      onReady = () => resolve(true);
+      current.once("ready", onReady);
+      timer = setTimeout(() => resolve(false), timeoutMs);
+    });
+  } finally {
+    clearTimeout(timer);
+    if (onReady) {
+      current.removeListener("ready", onReady);
+    }
+  }
+};
+
+export type ThreadImportEnqueueOutcome =
+  | "enqueued"
+  | "running"
+  | "queue_unavailable";
+
+/**
+ * Enqueue an "Import threads" run. One job per integration: while one is
+ * waiting or active a repeat is `running`. Finished jobs are removed, so the
+ * next click starts a fresh run. `beforeAdd` runs only when a job is about to
+ * be added, so the caller can create the run's row without leaving one behind
+ * for a coalesced click.
+ */
+export const enqueueThreadImport = async (
+  provider: string,
+  data: ThreadImportJobData,
+  beforeAdd: () => Promise<void>
+): Promise<ThreadImportEnqueueOutcome> => {
+  const queue = getThreadImportQueue(provider);
+  if (
+    !queue ||
+    !(await isQueueConnectionReady(THREAD_IMPORT_READY_TIMEOUT_MS))
+  ) {
+    return "queue_unavailable";
+  }
+  const deduplicationId = threadImportDeduplicationId(data.integrationId);
+  if (await queue.getDeduplicationJobId(deduplicationId)) {
+    return "running";
+  }
+  await beforeAdd();
+  // Each run gets its own job id; the deduplication id holds one live job per
+  // integration and is released when that job finishes. On a lost race BullMQ
+  // returns a job carrying our payload but the winner's id, so the id is the
+  // only reliable signal of who enqueued.
+  const job = await queue.add("import-threads", data, {
+    attempts: 1,
+    deduplication: { id: deduplicationId },
+    jobId: data.runId,
+    removeOnComplete: true,
+    removeOnFail: true,
+  });
+  return job.id === data.runId ? "enqueued" : "running";
 };
