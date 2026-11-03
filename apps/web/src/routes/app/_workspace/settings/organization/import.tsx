@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { SurfaceFrame } from "@workspace/ui/components/surface-frame";
 import { TreeItem, TreeItemRow, TreeList } from "@workspace/ui/components/tree";
 import { getErrorMessage } from "api/errors";
 import { formatDistanceToNow } from "date-fns";
@@ -313,7 +314,11 @@ function NewImportDialog({
         {
           // One root per source: siblings at the root would draw a guide
           // line through the earlier sources' channels.
-          <div className="flex flex-col gap-2">
+          <SurfaceFrame
+            className="flex flex-col gap-2 p-3 before:bg-background-primary"
+            elevation="xs"
+            radius="md"
+          >
             {sources.map((source) => {
               const option = requireIntegrationOption(source.type);
               const picked = selection.get(source.integrationId);
@@ -399,7 +404,7 @@ function NewImportDialog({
                 </TreeList>
               );
             })}
-          </div>
+          </SurfaceFrame>
         }
 
         <ImportNotice allowance={allowance} />
