@@ -7,7 +7,7 @@ import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "An accessible action control with size and variant styles. Primary, secondary, destructive, and outline use inset-ring Surface Frame chrome, including transparent and translucent fills.",
+    "An accessible action control with size and variant styles. Primary, secondary, destructive, and outline use bordered Surface Frame chrome, including transparent and translucent fills.",
   import: 'import { Button } from "@workspace/ui/components/button";',
   name: "Button",
   related: ["ActionButton", "Surface Frame", "Badge"],
@@ -126,7 +126,7 @@ function RouteComponent() {
             {
               default: '"primary"',
               description:
-                "Visual style. primary / secondary / destructive / outline use inset-ring Surface Frame; ghost and link stay flat.",
+                "Visual style. primary / secondary / destructive / outline use bordered Surface Frame; ghost and link stay flat.",
               name: "variant",
               type: '"primary" | "secondary" | "outline" | "ghost" | "link" | "destructive"',
             },

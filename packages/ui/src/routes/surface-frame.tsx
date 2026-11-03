@@ -7,7 +7,7 @@ import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "An inset-ring faux-border surface with inset chrome, stacked elevation, a mode-aware bevel, and an optional detached halo. Available as utilities or a SurfaceFrame wrapper.",
+    "A bordered surface built like coss/ui: a translucent 1px border, fill inside it, stacked elevation, a mode-aware crisp edge, and an optional detached halo. Available as utilities or a SurfaceFrame wrapper.",
   import:
     'import { SurfaceFrame } from "@workspace/ui/components/surface-frame";',
   name: "Surface Frame",
@@ -52,7 +52,7 @@ function RouteComponent() {
 
       <DocSection
         title="Edge and box sizing"
-        description="A transparent root paints a 1px inset shadow ring. Chrome and elevation sit 1px inside it. Default padding is 1px; caller padding replaces it. Explicit widths and heights still match bordered boxes. Content-sized frames retain 2px of edge space as padding instead of border."
+        description="The root has a real 1px translucent border, so it sizes exactly like a bordered box. The fill sits on ::before inside the border, so translucent fills never tint under the edge. Caller padding adds to the border, as with any bordered element."
       >
         <Demo
           code={`<div className="flex flex-col">
@@ -132,7 +132,7 @@ function RouteComponent() {
 
       <DocSection
         title="Edge bevel"
-        description="Bevel adds a crisp bottom edge in light mode and a top highlight in dark mode. A separate pseudo-element draws it without moving the chrome or elevation shadow."
+        description="Bevel adds a crisp bottom edge in light mode and a top highlight in dark mode. It is a 1px outer shadow cast by the fill pseudo-element under the border, without moving the fill or elevation shadow."
       >
         <Demo
           code={`<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-none min-h-20 w-40 p-3 text-xs">None</div>
@@ -153,7 +153,7 @@ function RouteComponent() {
 
       <DocSection
         title="Optional halo"
-        description="Halo adds an outline with a transparent gap and is always opt-in. No backdrop color is painted between the edge and halo; the background and elevation shadow remain visible through the gap."
+        description="Halo adds a bordered ring outside the layout with a transparent gap and is always opt-in. Turning it on never changes the frame's size. No backdrop color is painted between the edge and halo; the background and elevation shadow remain visible through the gap."
       >
         <Demo
           code={`<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-none min-h-20 w-40 p-3 text-xs">None</div>
@@ -201,7 +201,7 @@ function RouteComponent() {
 
       <DocSection
         title="Transparent chrome"
-        description="Use before:bg-transparent or a background token with opacity. The inset border ring paints only the edge. Elevation can still darken the edge, especially at the bottom; this approach does not mask the shadow."
+        description="Use before:bg-transparent or a background token with opacity. The root paints only its translucent border; the fill lives on ::before inside it. Elevation can still darken the edge, especially at the bottom; this approach does not mask the shadow."
       >
         <Demo
           code={`<div className="flex gap-8 bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
@@ -284,7 +284,7 @@ function RouteComponent() {
             {
               default: '"sm"',
               description:
-                "Base utility that applies the inset chrome, stacked shadow, mode-aware bevel, faux edge, and halo variables; pair it with a before:bg-background-* utility for the surface fill.",
+                "Base utility that applies the translucent border, stacked shadow, mode-aware crisp edge, and halo variables; pair it with a before:bg-background-* utility for the surface fill.",
               name: "surface-frame",
               type: "class",
             },
