@@ -1,0 +1,26 @@
+apps/web/src/routes/app/_workspace/settings/organization/import.tsx
+  s_73c32ba8147a1c::t_17b7a2a27d9d87 390
+  s_73c32ba8147a1c::t_7394c299dea8e4 23
+  s_73c32ba8147a1c::t_2b419c4b8d8dc2 297
+  s_73c32ba8147a1c::t_78da963e8d7ac3 392,394-398
+  s_73c32ba8147a1c::t_f8bada36a8a626 393
+  s_73c32ba8147a1c::t_4ac98dbb5dd405 399
+  s_73c32ba8147a1c::t_fd6456ce8c3ab2 303-332,334-343,345-354,357-389
+  s_73c32ba8147a1c::t_5d9e7610931858 298-302,391
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "17232912e6410d1f6c0cc1b7b04a0fdc4dcb106a",
+  "prompts": {},
+  "sessions": {
+    "s_73c32ba8147a1c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "55b53f6a-0288-475f-bd4c-64d3e929e556",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
