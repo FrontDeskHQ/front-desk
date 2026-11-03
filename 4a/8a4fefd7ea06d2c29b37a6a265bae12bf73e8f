@@ -1,0 +1,19 @@
+packages/ui/src/routes/surface-frame.tsx
+  s_5d09d5f1818a8b::t_35c1691fc37689 204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4a8a4fefd7ea06d2c29b37a6a265bae12bf73e8f",
+  "prompts": {},
+  "sessions": {
+    "s_5d09d5f1818a8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92204f83-5aaa-433b-b181-55fa61888516",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
